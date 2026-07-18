@@ -5,14 +5,22 @@
       "location": "eastus",
       "tags": {
         "environment": "dev",
-        "owner": "platform-team",  
-        "costCenter": "CC-LEARN-001", 
-        "application": "azure-learning", 
-        "dataClassification": "internal"  
-      }   
+        "owner": "platform-team",
+        "costCenter": "CC-LEARN-001",
+        "application": "azure-learning",
+        "dataClassification": "internal"
+      }
+    },
+    "azure_learning_test": {
+      "name": "azure-learning-test",
+      "location": "eastus",
+      "tags": {
+        "environment": "dev",
+        "owner": "platform-team",
+        "costCenter": "CC-LEARN-001",
+        "application": "azure-learning",
+        "dataClassification": "internal"
+      }
     }
   }
 }
-  
- 
- 
