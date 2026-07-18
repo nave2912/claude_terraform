@@ -5,14 +5,22 @@
       "location": "eastus",
       "tags": {
         "environment": "dev",
-        "owner": "platform-team",  
-        "costCenter": "CC-LEARN-001", 
-        "application": "azure-learning", 
-        "dataClassification": "internal"  
-      }   
+        "owner": "platform-team",
+        "costCenter": "CC-LEARN-001",
+        "application": "azure-learning",
+        "dataClassification": "internal"
+      }
+    },
+    "devrt": {
+      "name": "an-dev",
+      "location": "WestEurope",
+      "tags": {
+        "environment": "dev",
+        "owner": "naveen",
+        "costCenter": "landing",
+        "application": "tag",
+        "dataClassification": "public"
+      }
     }
   }
 }
-  
- 
- 
