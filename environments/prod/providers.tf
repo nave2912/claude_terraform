@@ -38,4 +38,9 @@ provider "azurerm" {
   client_secret   = var.client_secret
   tenant_id       = var.tenant_id
   features {}
+
+  # Required so data-plane operations (e.g. modules/storage_account's
+  # static_website block) authenticate via Azure AD instead of a storage
+  # account key — matches shared_access_key_enabled = false on that resource.
+  storage_use_azuread = true
 }
