@@ -53,15 +53,21 @@ jobs:
         with:
           tflint_version: v0.59.1
       
+      # - name: Init TFLint
+      #   working-directory: ${{ github.workspace }}
+      #   run: tflint --init --config=.tflint.hcl
+
       - name: Init TFLint
         working-directory: ${{ github.workspace }}
-        run: tflint --init --config=.tflint.hcl
+        run: |
+          tflint --init \
+            --config="${{ github.workspace }}/.tflint.hcl"
       
       - name: Run TFLint
         working-directory: ${{ github.workspace }}
         run: |
           tflint \
-            --config=.tflint.hcl \
+            --config="${{ github.workspace }}/.tflint.hcl" \
             --recursive
             
       # - name: tflint
