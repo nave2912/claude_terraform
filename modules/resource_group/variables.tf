@@ -32,7 +32,7 @@ variable "lock_level" {
   default     = null
 
   validation {
-    condition     = contains(["CanNotDelete", "ReadOnly", null], var.lock_level)
+    condition     = var.lock_level == null || contains(["CanNotDelete", "ReadOnly"], var.lock_level)
     error_message = "lock_level must be null, \"CanNotDelete\", or \"ReadOnly\"."
   }
 }
