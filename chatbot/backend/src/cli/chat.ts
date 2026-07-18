@@ -16,18 +16,17 @@
  * of the pipeline):
  *   npm run cli -- --mock
  */
-import { parseIntent, type IntentResult } from "../intent/client.js";
-import { mergeEntry } from "../modelwriter/index.js";
+import { previewIntent, type PreviewOutcome } from "../pipeline/previewIntent.js";
 import { readMessage } from "./readMessage.js";
 
 async function main() {
   const { message, mock } = readMessage(process.argv.slice(2));
 
-  let result: IntentResult;
+  let outcome: PreviewOutcome;
 
   if (mock) {
-    result = {
-      kind: "proposal",
+    outcome = {
+      status: "valid_proposal",
       resourceType: "resource-group",
       environment: "dev",
       key: "cli_smoke_test",
@@ -42,7 +41,8 @@ async function main() {
           dataClassification: "internal",
         },
       },
-      validation: { valid: true, errors: [] },
+      wouldWriteTo: "(mock — no real file path)",
+      mergedFileContent: "(mock — run without --mock to see the real merge)",
     };
   } else {
     if (!message) {
@@ -51,49 +51,38 @@ async function main() {
       );
       process.exit(1);
     }
-    result = await parseIntent([{ role: "user", content: message }]);
+    outcome = await previewIntent(message);
   }
 
-  switch (result.kind) {
-    case "clarification":
-      console.log(`[clarification needed] ${result.question}`);
+  switch (outcome.status) {
+    case "clarification_needed":
+      console.log(`[clarification needed] ${outcome.question}`);
       return;
     case "no_action":
-      console.log(`[no action] ${result.message}`);
+      console.log(`[no action] ${outcome.message}`);
       return;
-    case "proposal": {
+    case "validation_failed":
+      console.error("[validation FAILED]");
+      outcome.errors.forEach((e) => console.error(`  - ${e}`));
+      process.exitCode = 1;
+      return;
+    case "merged_file_invalid":
+      console.error("[merged file validation FAILED]");
+      outcome.errors.forEach((e) => console.error(`  - ${e}`));
+      process.exitCode = 1;
+      return;
+    case "valid_proposal":
       console.log(
-        `[proposal] ${result.resourceType} / ${result.environment} / ${result.key}`
+        `[proposal] ${outcome.resourceType} / ${outcome.environment} / ${outcome.key}`
       );
-      console.log(JSON.stringify(result.fields, null, 2));
-
-      if (!result.validation.valid) {
-        console.error("[validation FAILED]");
-        result.validation.errors.forEach((e) => console.error(`  - ${e}`));
-        process.exitCode = 1;
-        return;
-      }
+      console.log(JSON.stringify(outcome.fields, null, 2));
       console.log("[validation OK]");
-
-      const merge = mergeEntry(
-        result.resourceType,
-        result.environment,
-        result.key,
-        result.fields
-      );
-      if (!merge.validation.valid) {
-        console.error("[merged file validation FAILED]");
-        merge.validation.errors.forEach((e) => console.error(`  - ${e}`));
-        process.exitCode = 1;
-        return;
-      }
-      console.log(`[would write] ${merge.filePath}`);
-      console.log(merge.after);
+      console.log(`[would write] ${outcome.wouldWriteTo}`);
+      console.log(outcome.mergedFileContent);
       console.log(
-        "(nothing was written to disk — this CLI only tests parse -> validate -> merge; PR creation is a later phase)"
+        "(nothing was written to disk — this CLI only tests parse -> validate -> merge; use `npm run propose` or POST /propose for PR creation)"
       );
       return;
-    }
   }
 }
 
