@@ -1,7 +1,7 @@
 # JSON-driven infrastructure model.
 # Infrastructure intent lives in models/<environment>/resource-group.json.
 # jsondecode() turns intent into data; for_each turns data into resources
-# via the reusable module in modules/resource_group.
+# via the reusable module in modules/resource_group. 
 
 locals {
   resource_group_model  = jsondecode(file("${path.module}/../../models/${var.environment}/resource-group.json"))
