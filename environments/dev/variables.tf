@@ -16,5 +16,5 @@ variable "subscription_id" {
 variable "default_lock_level" {
   description = "Default Azure Resource Lock level applied to resource groups in this environment. Null disables locking."
   type        = string
-  default     = null 
+  default     = null
 }
