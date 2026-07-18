@@ -144,6 +144,18 @@ jobs:
           terraform_version: ${{ env.TF_VERSION }}
 
       - name: terraform init
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_BACKEND_SUBSCRIPTION_ID }}
+          ARM_USE_OIDC: true
+        run: |
+          terraform init \
+            -backend-config=backend.hcl \
+            -backend-config="storage_account_name=${{ secrets.TF_BACKEND_STORAGE_ACCOUNT }}" \
+            -backend-config="subscription_id=${{ secrets.AZURE_BACKEND_SUBSCRIPTION_ID }}"
+            
+      - name: terraform init
         run: |
           terraform init \
             -backend-config=backend.hcl \
