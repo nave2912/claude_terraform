@@ -90,6 +90,7 @@ jobs:
     needs: validate
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }} # GitHub Environment protection rules gate prod approval
     defaults:
       run:
         working-directory: environments/${{ env.ENVIRONMENT }}
