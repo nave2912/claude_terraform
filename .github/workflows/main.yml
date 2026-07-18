@@ -49,9 +49,24 @@ jobs:
       - name: terraform validate
         run: terraform validate
 
-      - name: tflint
-        uses: terraform-linters/setup-tflint@v4
-      - run: tflint --init && tflint --config=${{ github.workspace }}/.tflint.hcl --recursive
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.59.1
+      
+      - name: Init TFLint
+        working-directory: ${{ github.workspace }}
+        run: tflint --init --config=.tflint.hcl
+      
+      - name: Run TFLint
+        working-directory: ${{ github.workspace }}
+        run: |
+          tflint \
+            --config=.tflint.hcl \
+            --recursive
+            
+      # - name: tflint
+      #   uses: terraform-linters/setup-tflint@v4
+      # - run: tflint --init && tflint --config=${{ github.workspace }}/.tflint.hcl --recursive
 
       - name: tfsec
         uses: aquasecurity/tfsec-action@v1.0.3
