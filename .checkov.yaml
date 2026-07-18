@@ -9,6 +9,31 @@ skip-path:
   - modules/_module_template
   - tests
 
+# Each entry here is a deliberate, justified bypass — not a blanket
+# suppression. All apply to modules/storage_account/main.tf today (the only
+# resource of this type in the repo); revisit if a second storage account
+# consumer with different requirements is ever added.
+skip-check:
+  # LRS is the module's default replication tier, kept for cost in this
+  # dev/learning subscription. Callers can opt into ZRS/GRS per-entry via
+  # account_replication_type in the JSON model; this is not an oversight.
+  - CKV_AZURE_206
+  # This account has is_hns_enabled = true (ADLS Gen2). Azure's Queue
+  # service does not exist on HNS-enabled accounts, so there is no queue
+  # endpoint to configure logging on — the check is inapplicable, not
+  # unaddressed.
+  - CKV_AZURE_33
+  # This module's entire purpose is static_website (public internet-facing
+  # content hosting). Disabling public network access would make the site
+  # unreachable unless a CDN/Front Door + Private Link sits in front of it,
+  # which doesn't exist yet. Same reasoning for CKV2_AZURE_33 below.
+  - CKV_AZURE_59
+  - CKV2_AZURE_33
+  # Customer-managed-key encryption needs a Key Vault + Key + identity
+  # wiring, none of which exists in this framework yet — see
+  # ARCHITECTURE.md §9 ("no Key Vault module yet").
+  - CKV2_AZURE_1
+
 download-external-modules: false
 
 compact: true
