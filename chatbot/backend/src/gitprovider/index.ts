@@ -79,15 +79,31 @@ export interface OpenPrResult {
   compareUrl: string | null;
 }
 
-/** Tries `gh pr create`; falls back to a compare-view link if gh isn't available. */
+/**
+ * Tries to open the PR via `gh api ... --input -`, piping a JSON payload
+ * over stdin rather than passing title/body as command-line arguments.
+ * This deliberately avoids `gh pr create --title ... --body ...`: on
+ * Windows, Node's child_process argument quoting for multi-word CLI
+ * arguments can get corrupted (observed: literal "^" characters inserted
+ * before spaces), silently mangling free-text content. Since none of the
+ * free-text here goes through argv, that whole bug class doesn't apply.
+ * Falls back to a compare-view link if gh isn't available/authenticated.
+ */
 export function openPullRequest(branch: string, title: string, body: string): OpenPrResult {
   try {
-    const url = execFileSync(
+    const payload = JSON.stringify({
+      title,
+      head: branch,
+      base: "main",
+      body,
+    });
+    const output = execFileSync(
       "gh",
-      ["pr", "create", "--head", branch, "--base", "main", "--title", title, "--body", body],
-      { cwd: REPO_ROOT, encoding: "utf-8" }
-    ).trim();
-    return { prUrl: url, compareUrl: null };
+      ["api", "repos/{owner}/{repo}/pulls", "--input", "-"],
+      { cwd: REPO_ROOT, encoding: "utf-8", input: payload }
+    );
+    const parsed = JSON.parse(output) as { html_url: string };
+    return { prUrl: parsed.html_url, compareUrl: null };
   } catch {
     return { prUrl: null, compareUrl: compareUrl(branch) };
   }

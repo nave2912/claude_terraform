@@ -14,6 +14,12 @@
  *
  * Usage:
  *   npm run propose -- "<your request>"
+ *   npm run propose -- --file request.txt
+ *
+ * Prefer --file on Windows: some shell/npm.cmd/cmd.exe combinations have
+ * been observed corrupting multi-word quoted arguments (literal "^"
+ * characters inserted before spaces) before they ever reach this process.
+ * Reading from a file sidesteps shell argument quoting entirely.
  */
 import { parseIntent } from "../intent/client.js";
 import { mergeEntry } from "../modelwriter/index.js";
@@ -24,11 +30,14 @@ import {
   openPullRequest,
   returnToMain,
 } from "../gitprovider/index.js";
+import { readMessage } from "./readMessage.js";
 
 async function main() {
-  const message = process.argv.slice(2).join(" ");
+  const { message } = readMessage(process.argv.slice(2));
   if (!message) {
-    console.error('Usage: npm run propose -- "<your request>"');
+    console.error(
+      'Usage: npm run propose -- "<your request>"  (or: npm run propose -- --file request.txt)'
+    );
     process.exit(1);
   }
 

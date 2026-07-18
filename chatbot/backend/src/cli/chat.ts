@@ -5,6 +5,11 @@
  *
  * Usage:
  *   npm run cli -- "create a resource group for the analytics team in qa, owner platform-team, cost center CC-AN-001"
+ *   npm run cli -- --file request.txt
+ *
+ * Prefer --file on Windows: some shell/npm.cmd/cmd.exe combinations have
+ * been observed corrupting multi-word quoted arguments before they reach
+ * this process. Reading from a file sidesteps shell argument quoting.
  *
  * Mock mode (no ANTHROPIC_API_KEY / no network call — feeds a canned
  * proposal straight into validate+merge, useful for smoke-testing the rest
@@ -13,11 +18,10 @@
  */
 import { parseIntent, type IntentResult } from "../intent/client.js";
 import { mergeEntry } from "../modelwriter/index.js";
+import { readMessage } from "./readMessage.js";
 
 async function main() {
-  const args = process.argv.slice(2);
-  const mock = args.includes("--mock");
-  const message = args.filter((a) => a !== "--mock").join(" ");
+  const { message, mock } = readMessage(process.argv.slice(2));
 
   let result: IntentResult;
 
@@ -42,7 +46,9 @@ async function main() {
     };
   } else {
     if (!message) {
-      console.error('Usage: npm run cli -- "<your request>"  (or --mock)');
+      console.error(
+        'Usage: npm run cli -- "<your request>"  (or --mock, or --file request.txt)'
+      );
       process.exit(1);
     }
     result = await parseIntent([{ role: "user", content: message }]);
