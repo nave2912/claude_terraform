@@ -6,7 +6,7 @@
       "tags": {
         "environment": "dev",
         "owner": "platform-team",
-        "costCenter": "CC-LEARN-001",
+        "costCenter": "CC-LEARN-001", 
         "application": "azure-learning",
         "dataClassification": "internal"
       } 
