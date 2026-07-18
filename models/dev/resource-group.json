@@ -7,7 +7,7 @@
         "environment": "dev",
         "owner": "platform-team",
         "costCenter": "CC-LEARN-001", 
-        "application": "azure-learning",
+        "application": "azure-learning", 
         "dataClassification": "internal"  
       }  
     }
