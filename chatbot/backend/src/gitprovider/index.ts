@@ -1,0 +1,94 @@
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import { REPO_ROOT } from "../config/paths.js";
+
+/**
+ * Shells out to the system `git` (and optionally `gh`) against the repo
+ * checkout this backend lives in. No GitHub token is ever required for
+ * branch/commit/push — those use whatever git credentials are already
+ * configured on this machine (same as any normal `git push`). Opening the
+ * PR itself uses `gh` if installed and authenticated (`gh auth login` —
+ * never a pasted token); otherwise callers get back a one-click "compare"
+ * URL instead and open it manually. Either way, this module never
+ * force-pushes, never pushes to main, and never merges anything.
+ */
+
+function git(args: string[]): string {
+  return execFileSync("git", args, { cwd: REPO_ROOT, encoding: "utf-8" }).trim();
+}
+
+export function ensureCleanWorktree(): void {
+  const status = git(["status", "--porcelain"]);
+  if (status) {
+    throw new Error(
+      `Working tree has uncommitted changes:\n${status}\n` +
+        `Commit or stash before creating a chatbot branch.`
+    );
+  }
+}
+
+/** Checks out main, fast-forwards it, and creates+checks-out a new branch off it. */
+export function createChangeBranch(branchPrefix: string): string {
+  ensureCleanWorktree();
+  git(["checkout", "main"]);
+  git(["pull", "--ff-only", "origin", "main"]);
+  const branch = `${branchPrefix}-${Date.now()}`;
+  git(["checkout", "-b", branch]);
+  return branch;
+}
+
+/** Writes file content and commits it on the current branch. */
+export function writeAndCommit(filePath: string, content: string, message: string): void {
+  fs.writeFileSync(filePath, content);
+  git(["add", filePath]);
+  git(["commit", "-m", message]);
+}
+
+export function pushBranch(branch: string): void {
+  git(["push", "-u", "origin", branch]);
+}
+
+/** Returns to main so the next invocation starts from a clean base. */
+export function returnToMain(): void {
+  git(["checkout", "main"]);
+}
+
+function originHttpsUrl(): string | null {
+  try {
+    const url = git(["remote", "get-url", "origin"]);
+    // normalize git@github.com:owner/repo.git -> https://github.com/owner/repo
+    const sshMatch = url.match(/^git@([^:]+):(.+?)(\.git)?$/);
+    if (sshMatch) return `https://${sshMatch[1]}/${sshMatch[2]}`;
+    return url.replace(/\.git$/, "");
+  } catch {
+    return null;
+  }
+}
+
+/** Best-effort GitHub "create PR" link — no API/token needed, just opens the compare view. */
+export function compareUrl(branch: string): string | null {
+  const base = originHttpsUrl();
+  if (!base) return null;
+  return `${base}/compare/main...${branch}?expand=1`;
+}
+
+export interface OpenPrResult {
+  /** Set when `gh pr create` succeeded — the PR is already open. */
+  prUrl: string | null;
+  /** Always set — fallback link if prUrl is null (gh unavailable/unauthenticated). */
+  compareUrl: string | null;
+}
+
+/** Tries `gh pr create`; falls back to a compare-view link if gh isn't available. */
+export function openPullRequest(branch: string, title: string, body: string): OpenPrResult {
+  try {
+    const url = execFileSync(
+      "gh",
+      ["pr", "create", "--head", branch, "--base", "main", "--title", title, "--body", body],
+      { cwd: REPO_ROOT, encoding: "utf-8" }
+    ).trim();
+    return { prUrl: url, compareUrl: null };
+  } catch {
+    return { prUrl: null, compareUrl: compareUrl(branch) };
+  }
+}
