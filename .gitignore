@@ -1,0 +1,29 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Never commit real variable values that could contain subscription/env secrets
+*.auto.tfvars
+*.auto.tfvars.json
+!terraform.tfvars
+
+# Tooling
+.tflint.d/
+.checkov_report*
+tfsec-results*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

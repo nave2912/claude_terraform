@@ -1,0 +1,45 @@
+trigger: none
+
+pr:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  - group: terraform-landing-zone-common
+
+parameters:
+  - name: environment
+    type: string
+    default: dev
+    values:
+      - dev
+      - qa
+      - prod
+
+stages:
+  - stage: Validate
+    jobs:
+      - job: ValidateAndScan
+        steps:
+          - template: templates/validate.yml
+            parameters:
+              workingDirectory: environments/${{ parameters.environment }}
+          - template: templates/security-scan.yml
+            parameters:
+              workingDirectory: environments/${{ parameters.environment }}
+
+  - stage: Plan
+    dependsOn: Validate
+    jobs:
+      - job: TerraformPlan
+        steps:
+          - template: templates/plan-apply.yml
+            parameters:
+              environment: ${{ parameters.environment }}
+              workingDirectory: environments/${{ parameters.environment }}
+              serviceConnection: "svc-conn-${{ parameters.environment }}"
+              applyRequiresApproval: false

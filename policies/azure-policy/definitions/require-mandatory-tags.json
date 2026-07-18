@@ -1,0 +1,50 @@
+{
+  "properties": {
+    "displayName": "Require mandatory tags on resource groups",
+    "policyType": "Custom",
+    "mode": "Indexed",
+    "description": "Denies resource group creation/update unless environment, owner, costCenter, application, and dataClassification tags are present. Backstop for anything created outside the Terraform pipeline.",
+    "metadata": {
+      "category": "Tags",
+      "source": "azure-tf-landing-zone/policies"
+    },
+    "parameters": {
+      "requiredTags": {
+        "type": "Array",
+        "metadata": {
+          "displayName": "Required tag names",
+          "description": "List of tag keys that must be present."
+        },
+        "defaultValue": [
+          "environment",
+          "owner",
+          "costCenter",
+          "application",
+          "dataClassification"
+        ]
+      }
+    },
+    "policyRule": {
+      "if": {
+        "allOf": [
+          {
+            "field": "type",
+            "equals": "Microsoft.Resources/subscriptions/resourceGroups"
+          },
+          {
+            "anyOf": [
+              { "field": "tags['environment']", "exists": "false" },
+              { "field": "tags['owner']", "exists": "false" },
+              { "field": "tags['costCenter']", "exists": "false" },
+              { "field": "tags['application']", "exists": "false" },
+              { "field": "tags['dataClassification']", "exists": "false" }
+            ]
+          }
+        ]
+      },
+      "then": {
+        "effect": "deny"
+      }
+    }
+  }
+}

@@ -1,0 +1,133 @@
+name: terraform-landing-zone
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - "environments/**"
+      - "modules/**"
+      - "models/**"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to target"
+        required: true
+        default: dev
+        type: choice
+        options: [dev, qa, prod]
+
+permissions:
+  id-token: write # required for OIDC federated login to Azure
+  contents: read
+
+env:
+  TF_VERSION: "1.7.5"
+  ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: environments/${{ env.ENVIRONMENT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: terraform fmt -check
+        run: terraform fmt -check -recursive
+        working-directory: .
+
+      - name: terraform init (no backend)
+        run: terraform init -backend=false
+
+      - name: terraform validate
+        run: terraform validate
+
+      - name: tflint
+        uses: terraform-linters/setup-tflint@v4
+      - run: tflint --init && tflint --config=${{ github.workspace }}/.tflint.hcl --recursive
+
+      - name: tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: environments/${{ env.ENVIRONMENT }}
+          minimum_severity: HIGH
+
+      - name: checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: environments/${{ env.ENVIRONMENT }}
+          config_file: ${{ github.workspace }}/.checkov.yaml
+
+  plan:
+    needs: validate
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: environments/${{ env.ENVIRONMENT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_BACKEND_SUBSCRIPTION_ID }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: terraform init
+        run: |
+          terraform init \
+            -backend-config=backend.hcl \
+            -backend-config="storage_account_name=${{ secrets.TF_BACKEND_STORAGE_ACCOUNT }}" \
+            -backend-config="subscription_id=${{ secrets.AZURE_BACKEND_SUBSCRIPTION_ID }}"
+
+      - name: terraform plan
+        run: |
+          terraform plan \
+            -var-file=terraform.tfvars \
+            -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+
+  apply:
+    needs: validate
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }} # GitHub Environment protection rules gate prod approval
+    defaults:
+      run:
+        working-directory: environments/${{ env.ENVIRONMENT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_BACKEND_SUBSCRIPTION_ID }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: terraform init
+        run: |
+          terraform init \
+            -backend-config=backend.hcl \
+            -backend-config="storage_account_name=${{ secrets.TF_BACKEND_STORAGE_ACCOUNT }}" \
+            -backend-config="subscription_id=${{ secrets.AZURE_BACKEND_SUBSCRIPTION_ID }}"
+
+      - name: terraform apply
+        run: |
+          terraform apply -auto-approve \
+            -var-file=terraform.tfvars \
+            -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"

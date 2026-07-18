@@ -1,0 +1,16 @@
+parameters:
+  - name: workingDirectory
+    type: string
+
+steps:
+  - script: |
+      curl -sSLo tfsec.tar.gz https://github.com/aquasecurity/tfsec/releases/latest/download/tfsec-linux-amd64.tar.gz
+      tar -xzf tfsec.tar.gz -C /usr/local/bin
+      chmod +x /usr/local/bin/tfsec
+      tfsec ${{ parameters.workingDirectory }} --config-file=$(System.DefaultWorkingDirectory)/tfsec.yml --minimum-severity HIGH
+    displayName: "tfsec (fails on HIGH/CRITICAL)"
+
+  - script: |
+      pip install checkov
+      checkov --config-file $(System.DefaultWorkingDirectory)/.checkov.yaml -d ${{ parameters.workingDirectory }}
+    displayName: "checkov"

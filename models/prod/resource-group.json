@@ -1,0 +1,15 @@
+{
+  "resource_groups": {
+    "primary": {
+      "name": "azure-learning-prod",
+      "location": "eastus",
+      "tags": {
+        "environment": "prod",
+        "owner": "platform-team",
+        "costCenter": "CC-LEARN-001",
+        "application": "azure-learning",
+        "dataClassification": "internal"
+      }
+    }
+  }
+}

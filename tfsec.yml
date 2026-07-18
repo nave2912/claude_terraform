@@ -1,0 +1,5 @@
+minimum_severity: HIGH
+
+exclude:
+  # No exclusions yet — add specific rule IDs here only with a documented
+  # justification comment, never a blanket suppression.

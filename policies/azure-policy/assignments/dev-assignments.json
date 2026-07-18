@@ -1,0 +1,18 @@
+{
+  "assignments": [
+    {
+      "name": "assign-require-mandatory-tags-dev",
+      "policyDefinition": "../definitions/require-mandatory-tags.json",
+      "scopeSubscriptionVar": "subscription_id",
+      "enforcementMode": "Default",
+      "note": "Assigned at the AzureLearning subscription scope. Actual azurerm_policy_assignment wiring is a TODO module — see ARCHITECTURE.md section 9, item 4."
+    },
+    {
+      "name": "assign-allowed-locations-dev",
+      "policyDefinition": "../definitions/allowed-locations.json",
+      "scopeSubscriptionVar": "subscription_id",
+      "enforcementMode": "Default",
+      "note": "Assigned at the AzureLearning subscription scope. Actual azurerm_policy_assignment wiring is a TODO module — see ARCHITECTURE.md section 9, item 4."
+    }
+  ]
+}

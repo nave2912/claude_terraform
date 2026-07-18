@@ -1,0 +1,40 @@
+{
+  "properties": {
+    "displayName": "Allowed locations for resource groups",
+    "policyType": "Custom",
+    "mode": "Indexed",
+    "description": "Restricts resource group deployment to approved Azure regions.",
+    "metadata": {
+      "category": "General",
+      "source": "azure-tf-landing-zone/policies"
+    },
+    "parameters": {
+      "allowedLocations": {
+        "type": "Array",
+        "metadata": {
+          "displayName": "Allowed locations",
+          "description": "The list of Azure regions approved for deployment.",
+          "strongType": "location"
+        },
+        "defaultValue": ["eastus", "eastus2", "westeurope"]
+      }
+    },
+    "policyRule": {
+      "if": {
+        "allOf": [
+          {
+            "field": "type",
+            "equals": "Microsoft.Resources/subscriptions/resourceGroups"
+          },
+          {
+            "field": "location",
+            "notIn": "[parameters('allowedLocations')]"
+          }
+        ]
+      },
+      "then": {
+        "effect": "deny"
+      }
+    }
+  }
+}

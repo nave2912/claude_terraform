@@ -1,0 +1,18 @@
+framework:
+  - terraform
+  - json
+
+directory:
+  - .
+
+skip-path:
+  - modules/_module_template
+  - tests
+
+download-external-modules: false
+
+compact: true
+quiet: false
+
+# Fail the build on any MEDIUM severity or higher finding.
+soft-fail: false

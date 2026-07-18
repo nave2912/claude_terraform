@@ -1,0 +1,52 @@
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - environments/*
+      - modules/*
+      - models/*
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  - group: terraform-landing-zone-common
+
+parameters:
+  - name: environment
+    type: string
+    default: dev
+    values:
+      - dev
+      - qa
+      - prod
+
+stages:
+  - stage: Validate
+    jobs:
+      - job: ValidateAndScan
+        steps:
+          - template: templates/validate.yml
+            parameters:
+              workingDirectory: environments/${{ parameters.environment }}
+          - template: templates/security-scan.yml
+            parameters:
+              workingDirectory: environments/${{ parameters.environment }}
+
+  - stage: PlanAndApply
+    dependsOn: Validate
+    jobs:
+      - deployment: TerraformApply
+        environment: ${{ parameters.environment }} # Azure DevOps Environment — configure approvals/checks here, especially for prod
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - template: templates/plan-apply.yml
+                  parameters:
+                    environment: ${{ parameters.environment }}
+                    workingDirectory: environments/${{ parameters.environment }}
+                    serviceConnection: "svc-conn-${{ parameters.environment }}"
+                    applyRequiresApproval: true

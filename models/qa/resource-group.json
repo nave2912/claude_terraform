@@ -1,0 +1,15 @@
+{
+  "resource_groups": {
+    "primary": {
+      "name": "azure-learning-qa",
+      "location": "eastus",
+      "tags": {
+        "environment": "qa",
+        "owner": "platform-team",
+        "costCenter": "CC-LEARN-001",
+        "application": "azure-learning",
+        "dataClassification": "internal"
+      }
+    }
+  }
+}

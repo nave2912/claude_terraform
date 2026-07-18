@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://internal/schemas/storage-account.schema.json",
+  "title": "Storage Account Model",
+  "description": "Schema for JSON-driven Azure Storage Account (Gen2) definitions consumed by environments/<env>/main.tf",
+  "type": "object",
+  "required": ["storage_accounts"],
+  "additionalProperties": false,
+  "properties": {
+    "storage_accounts": {
+      "type": "object",
+      "description": "Map keyed by a stable logical id. The key becomes the for_each key in Terraform.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["name", "resource_group_key", "tags"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9]{3,24}$",
+            "description": "Globally unique storage account name: lowercase letters/numbers only, 3-24 chars."
+          },
+          "resource_group_key": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Logical id of the resource group (key under resource_groups in resource-group.json) to deploy into. Location is inherited from that resource group."
+          },
+          "account_tier": {
+            "type": "string",
+            "enum": ["Standard", "Premium"],
+            "default": "Standard"
+          },
+          "account_replication_type": {
+            "type": "string",
+            "enum": ["LRS", "GRS", "RAGRS", "ZRS", "GZRS", "RAGZRS"],
+            "default": "LRS"
+          },
+          "tags": {
+            "type": "object",
+            "required": [
+              "environment",
+              "owner",
+              "costCenter",
+              "application",
+              "dataClassification"
+            ],
+            "properties": {
+              "environment": { "type": "string", "enum": ["dev", "qa", "prod"] },
+              "owner": { "type": "string", "minLength": 1 },
+              "costCenter": { "type": "string", "minLength": 1 },
+              "application": { "type": "string", "minLength": 1 },
+              "dataClassification": {
+                "type": "string",
+                "enum": ["public", "internal", "confidential", "restricted"]
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

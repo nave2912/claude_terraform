@@ -1,0 +1,22 @@
+parameters:
+  - name: workingDirectory
+    type: string
+
+steps:
+  - script: terraform fmt -check -recursive
+    displayName: "terraform fmt -check"
+    workingDirectory: $(System.DefaultWorkingDirectory)
+
+  - script: |
+      terraform init -backend=false
+      terraform validate
+    displayName: "terraform validate"
+    workingDirectory: ${{ parameters.workingDirectory }}
+
+  - script: |
+      curl -sSLo tflint.zip https://github.com/terraform-linters/tflint/releases/latest/download/tflint_linux_amd64.zip
+      unzip -o tflint.zip -d /usr/local/bin
+      tflint --init
+      tflint --config=$(System.DefaultWorkingDirectory)/.tflint.hcl --recursive
+    displayName: "tflint"
+    workingDirectory: ${{ parameters.workingDirectory }}

@@ -1,0 +1,51 @@
+parameters:
+  - name: environment
+    type: string
+  - name: workingDirectory
+    type: string
+  - name: serviceConnection
+    type: string
+  - name: applyRequiresApproval
+    type: boolean
+    default: true
+
+steps:
+  - task: AzureCLI@2
+    displayName: "terraform init (${{ parameters.environment }})"
+    inputs:
+      azureSubscription: ${{ parameters.serviceConnection }}
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        terraform init \
+          -backend-config=backend.hcl \
+          -backend-config="storage_account_name=$(TF_BACKEND_STORAGE_ACCOUNT)" \
+          -backend-config="subscription_id=$(TF_BACKEND_SUBSCRIPTION_ID)"
+      workingDirectory: ${{ parameters.workingDirectory }}
+
+  - task: AzureCLI@2
+    displayName: "terraform plan (${{ parameters.environment }})"
+    inputs:
+      azureSubscription: ${{ parameters.serviceConnection }}
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        terraform plan \
+          -var-file=terraform.tfvars \
+          -var="subscription_id=$(AZURE_SUBSCRIPTION_ID)" \
+          -out=tfplan
+      workingDirectory: ${{ parameters.workingDirectory }}
+
+  # Manual approval gate belongs in the pipeline's environment configuration
+  # (Azure DevOps Environments -> Approvals and checks) for
+  # ${{ parameters.environment }}, not inline here.
+
+  - task: AzureCLI@2
+    displayName: "terraform apply (${{ parameters.environment }})"
+    condition: eq('${{ parameters.applyRequiresApproval }}', 'true')
+    inputs:
+      azureSubscription: ${{ parameters.serviceConnection }}
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: terraform apply tfplan
+      workingDirectory: ${{ parameters.workingDirectory }}
