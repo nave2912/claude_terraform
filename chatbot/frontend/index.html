@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Terraform Landing Zone — Chatbot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Azure Landing Zone Chatbot</h1>
+      <p class="subtitle">
+        Fixed-schema requests only — every question below maps directly to a
+        field the platform team already defined in
+        <code>models/schema/*.schema.json</code>. Submitting opens a PR; a
+        human still has to review and merge it.
+      </p>
+    </header>
+
+    <section id="connection-bar">
+      <label>
+        API base URL
+        <input id="api-base" type="text" value="http://localhost:3000" />
+      </label>
+      <label>
+        API key
+        <input id="api-key" type="password" placeholder="x-api-key" />
+      </label>
+      <button id="connect-btn">Connect</button>
+      <span id="connection-status" class="status"></span>
+    </section>
+
+    <main id="chat-log" aria-live="polite"></main>
+
+    <footer id="composer"></footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
