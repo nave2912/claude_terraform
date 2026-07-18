@@ -9,10 +9,10 @@
 #   - No default values for anything that varies by environment or
 #     subscription; only safe, universal defaults (e.g. lock_level = null).
 
-# tflint-ignore: terraform_unused_declarations
 # Unused by design — main.tf's resource block is commented out in this
 # template. These variables exist to be copied into the real module; they
 # become "used" the moment main.tf is filled in. Do not remove.
+# tflint-ignore: terraform_unused_declarations
 variable "name" {
   description = "Resource name, following the naming convention in docs/naming-convention.md."
   type        = string
