@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -25,19 +24,36 @@ interface Props {
   submitting?: boolean;
 }
 
-const KEY_PATTERN = /^[a-z][a-z0-9_]*$/;
+/**
+ * Derives the JSON map id mergeEntry() needs (e.g. "primary" under
+ * resource_groups) from the entry's own `name` field, so the user is
+ * never asked for it separately — the schema itself has no "key" concept,
+ * it's purely a pipeline-level id. A short suffix keeps two requests with
+ * the same name from silently overwriting each other's entry.
+ */
+function deriveKey(values: Record<string, unknown>, fallback: string): string {
+  const raw = typeof values.name === "string" && values.name ? values.name : fallback;
+  const slug = raw
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "") || "entry";
+  const base = /^[a-z]/.test(slug) ? slug : `r_${slug}`;
+  const suffix = Date.now().toString(36).slice(-4);
+  return `${base}_${suffix}`;
+}
 
 /**
  * The single-submit form the whole feature is built around: every field
  * the resource's schema defines, generated dynamically and recursively
  * (see SchemaObjectFields + utils/schemaTree.ts) — nested objects, arrays
  * of primitives, arrays of objects (tables), dynamic-key maps, and a raw
- * JSON fallback for anything with no sane bespoke widget. Plus the two
- * pipeline-level fields the schema itself doesn't define (environment for
- * routing, key as the JSON map id). Nothing here is free text sent to an
- * LLM — this is what actually reaches POST /propose-structured, validated
- * client-side by zod and re-validated server-side by the same ajv schema
- * either way.
+ * JSON fallback for anything with no sane bespoke widget. Plus the one
+ * pipeline-level field the schema itself doesn't define — environment,
+ * for routing which models/<env>/*.json file this writes to (the logical
+ * key is derived automatically, see deriveKey). Nothing here is free text
+ * sent to an LLM — this is what actually reaches POST /propose-structured,
+ * validated client-side by zod and re-validated server-side by the same
+ * ajv schema either way.
  */
 export function DynamicResourceForm({
   resourceType,
@@ -47,8 +63,6 @@ export function DynamicResourceForm({
   submitting,
 }: Props) {
   const [environment, setEnvironment] = useState(defaultEnvironment ?? allowedEnvironments[0]);
-  const [key, setKey] = useState("");
-  const [keyTouched, setKeyTouched] = useState(false);
 
   const { form, entrySchema } = useSchemaForm(resourceType, environment);
   const { control, handleSubmit, formState, setValue } = form;
@@ -60,12 +74,9 @@ export function DynamicResourceForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [environment]);
 
-  const keyError = keyTouched && !KEY_PATTERN.test(key) ? "Lowercase letters, numbers, underscores; must start with a letter." : null;
-
   const submit = handleSubmit((values) => {
-    setKeyTouched(true);
-    if (!KEY_PATTERN.test(key)) return;
     const fields = coerceSubmissionValue(entrySchema, values, true) as Record<string, unknown>;
+    const key = deriveKey(values, resourceType.resourceType);
     onSubmit({ resourceType: resourceType.resourceType, environment, key, fields });
   });
 
@@ -98,19 +109,6 @@ export function DynamicResourceForm({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="key">Logical key (internal id, e.g. &quot;analytics_dev&quot;)</Label>
-            <Input
-              id="key"
-              value={key}
-              disabled={submitting}
-              onChange={(e) => setKey(e.target.value)}
-              onBlur={() => setKeyTouched(true)}
-              aria-invalid={Boolean(keyError)}
-            />
-            {keyError && <p className="text-xs text-destructive">{keyError}</p>}
           </div>
 
           <SchemaObjectFields
