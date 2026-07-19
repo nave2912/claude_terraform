@@ -10,6 +10,17 @@
         "application": "azure-learning",
         "dataClassification": "internal"
       }
+    },
+    "rsgnewnk19072026_xrqj": {
+      "name": "rsgnewnk19072026",
+      "location": "WestEurope",
+      "tags": {
+        "environment": "dev",
+        "owner": "platform-team",
+        "costCenter": "CC-LEARN-001",
+        "application": "azure-learning",
+        "dataClassification": "public"
+      }
     }
   }
 }
