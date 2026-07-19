@@ -69,6 +69,7 @@ jobs:
     needs: validate
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 15 # a hung `terraform plan` (e.g. a missing -var it silently prompts for) would otherwise hold the state lock for up to GitHub's default 360-minute job timeout
     defaults:
       run:
         working-directory: environments/${{ env.ENVIRONMENT }}
@@ -95,8 +96,11 @@ jobs:
       - name: terraform plan
         run: |
           terraform plan \
+            -input=false \
             -var-file=terraform.tfvars \
-            -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+            -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+            -var="chatbot_anthropic_api_key=${{ secrets.CHATBOT_ANTHROPIC_API_KEY }}" \
+            -var="chatbot_github_token=${{ secrets.CHATBOT_GITHUB_TOKEN }}"
 
   apply:
     needs: validate
@@ -129,5 +133,8 @@ jobs:
       - name: terraform apply
         run: |
           terraform apply -auto-approve \
+            -input=false \
             -var-file=terraform.tfvars \
-            -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+            -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+            -var="chatbot_anthropic_api_key=${{ secrets.CHATBOT_ANTHROPIC_API_KEY }}" \
+            -var="chatbot_github_token=${{ secrets.CHATBOT_GITHUB_TOKEN }}"
