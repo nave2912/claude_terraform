@@ -1,61 +1,58 @@
-name: chatbot-frontend-image
+name: chatbot-frontend-swa
 
-# Builds the chatbot frontend's Docker image and pushes it to the
-# chatbot's own ACR (chatbotacrnaveenkumar, provisioned by
-# environments/dev/main.tf's container_registry module). Publishing here
-# means "pushed to ACR" — it does not update the running Container App;
-# that's a separate step (bump container_image_tag / az containerapp
-# update), same as the backend image.
+# Builds and deploys chatbot/frontend to the "naveenkumar" Azure Static Web
+# App (azure-learning-dev, provisioned by environments/dev/main.tf's
+# static_web_app module). Next.js hybrid rendering (SSR + the server-side
+# Route Handlers under src/app/api/*) is built by Oryx inside the deploy
+# action itself -- there's no separate docker build/push step here.
 
 on:
   push:
     branches: [main]
     paths:
       - "chatbot/frontend/**"
-      - ".github/workflows/chatbot-frontend-image.yml"
+      - ".github/workflows/chatbot-frontend-swa.yml"
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches: [main]
+    paths:
+      - "chatbot/frontend/**"
   workflow_dispatch: {}
 
 permissions:
-  id-token: write # required for OIDC federated login to Azure
   contents: read
-
-env:
-  ACR_NAME: chatbotacrnaveenkumar
-  IMAGE_NAME: chatbot-frontend
+  pull-requests: write
 
 jobs:
-  build-and-push:
+  build-and-deploy:
+    if: github.event_name != 'pull_request' || github.event.action != 'closed'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
-      - name: Azure login
-        uses: azure/login@v3
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_BACKEND_SUBSCRIPTION_ID }}
-          ARM_USE_OIDC: true
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          app_location: "chatbot/frontend"
+          api_location: ""
+          output_location: ""
+          # BACKEND_BASE_URL / BACKEND_API_KEY / ANTHROPIC_API_KEY are read
+          # server-side by the Route Handlers at request time -- they must
+          # be set as Application settings on the Static Web App itself
+          # (az staticwebapp appsettings set / Portal > Configuration), not
+          # baked in at build time here.
 
-      # admin_enabled = false on this registry by design (see
-      # modules/container_registry) — this authenticates via the logged-in
-      # identity's AAD token instead of an admin username/password. That
-      # identity needs the "AcrPush" role on chatbotacrnaveenkumar; this is
-      # a separate grant from the Terraform-apply identity's own roles and
-      # is NOT provisioned by Terraform itself (RBAC-granting-RBAC is
-      # exactly what environments/dev/main.tf's role assignments needed a
-      # human to grant once, for the same reason).
-      - name: az acr login
-        run: az acr login --name "$ACR_NAME"
-
-      - name: Build and push image
-        run: |
-          IMAGE="$ACR_NAME.azurecr.io/$IMAGE_NAME"
-          docker build \
-            -f chatbot/frontend/Dockerfile \
-            -t "$IMAGE:latest" \
-            -t "$IMAGE:${{ github.sha }}" \
-            .
-          docker push "$IMAGE:latest"
-          docker push "$IMAGE:${{ github.sha }}"
+  close-preview:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Close Azure Static Web Apps PR preview
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: "close"
