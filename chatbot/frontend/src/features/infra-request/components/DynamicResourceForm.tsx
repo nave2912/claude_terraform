@@ -17,6 +17,7 @@ import { useSchemaForm } from "../hooks/useSchemaForm";
 import { detectForeignKeyRef, fieldKey, unflattenValues } from "../utils/schemaFields";
 import { SchemaField } from "./SchemaField";
 import { ForeignKeyField } from "./ForeignKeyField";
+import { TagsTable } from "./TagsTable";
 
 interface Props {
   resourceType: ResourceTypeInfo;
@@ -117,27 +118,36 @@ export function DynamicResourceForm({
             {keyError && <p className="text-xs text-destructive">{keyError}</p>}
           </div>
 
-          {fields.map((field) => {
-            const fk = detectForeignKeyRef(field.schema);
-            return fk ? (
-              <ForeignKeyField
-                key={fieldKey(field.path)}
-                field={field}
-                refResourceType={fk.resourceType}
-                environment={environment}
-                control={control}
-                errors={formState.errors}
-              />
-            ) : (
-              <SchemaField
-                key={fieldKey(field.path)}
-                field={field}
-                control={control}
-                errors={formState.errors}
-                disabled={submitting}
-              />
-            );
-          })}
+          {fields
+            .filter((field) => field.path[0] !== "tags")
+            .map((field) => {
+              const fk = detectForeignKeyRef(field.schema);
+              return fk ? (
+                <ForeignKeyField
+                  key={fieldKey(field.path)}
+                  field={field}
+                  refResourceType={fk.resourceType}
+                  environment={environment}
+                  control={control}
+                  errors={formState.errors}
+                />
+              ) : (
+                <SchemaField
+                  key={fieldKey(field.path)}
+                  field={field}
+                  control={control}
+                  errors={formState.errors}
+                  disabled={submitting}
+                />
+              );
+            })}
+
+          <TagsTable
+            fields={fields.filter((field) => field.path[0] === "tags")}
+            control={control}
+            errors={formState.errors}
+            disabled={submitting}
+          />
 
           <Button type="submit" disabled={submitting} className="self-start">
             {submitting ? "Validating…" : "Preview change"}
