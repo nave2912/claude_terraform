@@ -27,13 +27,27 @@ export function ensureCleanWorktree(): void {
   }
 }
 
-/** Checks out main, fast-forwards it, and creates+checks-out a new branch off it. */
+/**
+ * Fetches origin/main and branches directly off that fetched ref — never
+ * off the locally checked-out `main`, and never via `git pull --ff-only`.
+ *
+ * Why: this backend's local `main` routinely carries commits that haven't
+ * been pushed yet (the operator's own in-progress work, kept local on
+ * purpose). A `git checkout main; git pull --ff-only origin main` fails
+ * outright the moment local main is even one commit ahead of origin —
+ * exactly the state this repo is normally in — with a fatal
+ * "not possible to fast-forward" error that used to require a manual fix
+ * before the next PR could be opened. Branching from `origin/main`
+ * directly sidesteps that class of error entirely (nothing about local
+ * main's state matters), and as a side benefit keeps the PR's diff
+ * limited to the actual intended change instead of accidentally dragging
+ * along whatever unpushed local commits happened to exist at the time.
+ */
 export function createChangeBranch(branchPrefix: string): string {
   ensureCleanWorktree();
-  git(["checkout", "main"]);
-  git(["pull", "--ff-only", "origin", "main"]);
+  git(["fetch", "origin", "main"]);
   const branch = `${branchPrefix}-${Date.now()}`;
-  git(["checkout", "-b", branch]);
+  git(["checkout", "-B", branch, "origin/main"]);
   return branch;
 }
 
