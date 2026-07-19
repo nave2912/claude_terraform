@@ -10,17 +10,6 @@
         "application": "azure-learning",
         "dataClassification": "internal"
       }
-    },
-    "tsv_sz9b": {
-      "name": "tsv",
-      "location": "WestEurope",
-      "tags": {
-        "environment": "dev",
-        "owner": "naveen",
-        "costCenter": "cost",
-        "application": "dev",
-        "dataClassification": "confidential"
-      }
     }
   }
 }
