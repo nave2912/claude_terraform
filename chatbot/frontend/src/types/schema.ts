@@ -1,0 +1,91 @@
+/**
+ * Mirrors chatbot/backend/src/config/schemaRegistry.ts's JsonSchema /
+ * ResourceTypeDefinition shapes, and the /schema-info response shape from
+ * chatbot/backend/src/api/server.ts. Kept as plain types (not zod) since
+ * this is what the backend sends us, not something we validate — we
+ * validate what we SEND, not what we receive from our own trusted backend.
+ */
+export interface JsonSchemaProperty {
+  type?: string;
+  description?: string;
+  pattern?: string;
+  minLength?: number;
+  enum?: string[];
+  default?: string;
+  properties?: Record<string, JsonSchemaProperty>;
+  required?: string[];
+  additionalProperties?: unknown;
+  [key: string]: unknown;
+}
+
+export interface EntrySchema {
+  type: string;
+  required?: string[];
+  properties: Record<string, JsonSchemaProperty>;
+  additionalProperties?: unknown;
+}
+
+export interface ResourceTypeInfo {
+  resourceType: string;
+  containerKey: string;
+  schema: {
+    title?: string;
+    description?: string;
+    properties: Record<
+      string,
+      { description?: string; additionalProperties: EntrySchema }
+    >;
+  };
+}
+
+export interface SchemaInfoResponse {
+  allowedEnvironments: string[];
+  resourceTypes: ResourceTypeInfo[];
+}
+
+export interface ModelEntriesResponse {
+  entries: Record<string, Record<string, unknown>>;
+}
+
+export type PreviewOutcome =
+  | { status: "validation_failed"; errors: string[] }
+  | { status: "merged_file_invalid"; errors: string[] }
+  | {
+      status: "valid_proposal";
+      resourceType: string;
+      environment: string;
+      key: string;
+      fields: Record<string, unknown>;
+      wouldWriteTo: string;
+      mergedFileContent: string;
+    };
+
+export type ProposeOutcome =
+  | { status: "validation_failed"; errors: string[] }
+  | { status: "merged_file_invalid"; errors: string[] }
+  | { status: "environment_blocked"; environment: string; allowed: string[] }
+  | {
+      status: "pr_opened";
+      resourceType: string;
+      environment: string;
+      key: string;
+      fields: Record<string, unknown>;
+      branch: string;
+      prUrl: string;
+    }
+  | {
+      status: "pushed_no_pr";
+      resourceType: string;
+      environment: string;
+      key: string;
+      fields: Record<string, unknown>;
+      branch: string;
+      compareUrl: string | null;
+    };
+
+export interface StructuredProposalInput {
+  resourceType: string;
+  environment: string;
+  key: string;
+  fields: Record<string, unknown>;
+}
