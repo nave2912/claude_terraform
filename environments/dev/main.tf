@@ -216,15 +216,21 @@ module "container_app" {
   # Key-Vault-backed secrets aren't part of the model (see schema
   # description) — the "backend" entry's three secrets are hand-wired here
   # by key, same pattern as the role assignment above.
+  # versionless_id, not id — pinning a specific secret version here means
+  # any future secret rotation (a new azurerm_key_vault_secret version)
+  # would require a container app config change too, and worse, produces
+  # an azurerm provider "inconsistent final plan" error whenever the
+  # secret is modified in the same apply that creates/updates this
+  # container app (the versioned id changes between plan and apply).
   secrets = each.key == "backend" ? [
     {
       name                = "anthropic-api-key"
-      key_vault_secret_id = azurerm_key_vault_secret.chatbot_anthropic_api_key.id
+      key_vault_secret_id = azurerm_key_vault_secret.chatbot_anthropic_api_key.versionless_id
       identity            = azurerm_user_assigned_identity.container_app[each.key].id
     },
     {
       name                = "github-token"
-      key_vault_secret_id = azurerm_key_vault_secret.chatbot_github_token.id
+      key_vault_secret_id = azurerm_key_vault_secret.chatbot_github_token.versionless_id
       identity            = azurerm_user_assigned_identity.container_app[each.key].id
     },
     {
