@@ -94,6 +94,16 @@ resource "azurerm_key_vault_secret" "chatbot_anthropic_api_key" {
   tags            = local.key_vault_model.key_vaults["chatbot"].tags
 
   depends_on = [azurerm_role_assignment.chatbot_deployer_kv_secrets_officer]
+
+  # Terraform only creates this secret; it never overwrites the value on
+  # later applies. CI doesn't reliably pass a real value on every run (e.g.
+  # workflow_dispatch with no input), and without this a blank -var would
+  # silently blank out a real secret rotated by hand. Rotate by changing the
+  # value out-of-band (az keyvault secret set / Portal) or in Terraform with
+  # a deliberate `terraform apply -replace`.
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
 
 resource "azurerm_key_vault_secret" "chatbot_github_token" {
@@ -105,6 +115,12 @@ resource "azurerm_key_vault_secret" "chatbot_github_token" {
   tags            = local.key_vault_model.key_vaults["chatbot"].tags
 
   depends_on = [azurerm_role_assignment.chatbot_deployer_kv_secrets_officer]
+
+  # See chatbot_anthropic_api_key above: create-once, never overwritten by
+  # later applies.
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
 
 module "container_registry" {
