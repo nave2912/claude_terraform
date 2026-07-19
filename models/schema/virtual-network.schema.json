@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://internal/schemas/virtual-network.schema.json",
+  "title": "Virtual Network Model",
+  "description": "Schema for JSON-driven Azure Virtual Network definitions consumed by environments/<env>/main.tf",
+  "type": "object",
+  "required": ["virtual_networks"],
+  "additionalProperties": false,
+  "properties": {
+    "virtual_networks": {
+      "type": "object",
+      "description": "Map keyed by a stable logical id. The key becomes the for_each key in Terraform.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["name", "resource_group_key", "address_space", "tags"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,62}[a-zA-Z0-9_]$",
+            "description": "Virtual network name, 2-64 chars."
+          },
+          "resource_group_key": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Logical id of the resource group (key under resource_groups in resource-group.json) to deploy into. Location is inherited from that resource group."
+          },
+          "address_space": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string" },
+            "description": "CIDR blocks for the virtual network, e.g. [\"10.0.0.0/16\"]."
+          },
+          "subnets": {
+            "type": "object",
+            "description": "Map keyed by a stable logical subnet id.",
+            "additionalProperties": {
+              "type": "object",
+              "required": ["name", "address_prefixes"],
+              "additionalProperties": false,
+              "properties": {
+                "name": { "type": "string", "minLength": 1 },
+                "address_prefixes": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "type": "string" }
+                }
+              }
+            }
+          },
+          "tags": {
+            "type": "object",
+            "required": [
+              "environment",
+              "owner",
+              "costCenter",
+              "application",
+              "dataClassification"
+            ],
+            "properties": {
+              "environment": { "type": "string", "enum": ["dev", "qa", "prod"] },
+              "owner": { "type": "string", "minLength": 1 },
+              "costCenter": { "type": "string", "minLength": 1 },
+              "application": { "type": "string", "minLength": 1 },
+              "dataClassification": {
+                "type": "string",
+                "enum": ["public", "internal", "confidential", "restricted"]
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}
