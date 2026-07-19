@@ -24,27 +24,27 @@ output "storage_accounts" {
 
 output "chatbot_key_vault_name" {
   description = "Name of the Key Vault holding chatbot secrets."
-  value       = module.key_vault.name
+  value       = module.key_vault["chatbot"].name
 }
 
 output "chatbot_container_registry_login_server" {
   description = "Login server for the chatbot's ACR — used by `docker push` / CI to publish new backend images."
-  value       = module.container_registry.login_server
+  value       = module.container_registry["chatbot"].login_server
 }
 
 output "chatbot_container_app_fqdn" {
   description = "Public FQDN of the chatbot backend Container App."
-  value       = module.container_app.latest_revision_fqdn
+  value       = module.container_app["backend"].latest_revision_fqdn
 }
 
 output "chatbot_static_web_app_default_host_name" {
   description = "Public hostname of the chatbot frontend Static Web App."
-  value       = module.static_web_app.default_host_name
+  value       = module.static_web_app["chatbot"].default_host_name
 }
 
 output "chatbot_static_web_app_api_key" {
   description = "Deployment token for the Static Web App — used by the SWA CLI/GitHub Actions to publish frontend builds. Sensitive."
-  value       = module.static_web_app.api_key
+  value       = module.static_web_app["chatbot"].api_key
   sensitive   = true
 }
 
