@@ -42,8 +42,8 @@ export function SchemaField({ field, control, errors, optionsOverride, disabled 
           control={control}
           render={({ field: rhf }) => (
             <Select
-              value={rhf.value || UNSET}
-              onValueChange={(value) => rhf.onChange(value === UNSET ? "" : value)}
+              value={field.required ? rhf.value : rhf.value || UNSET}
+              onValueChange={(value) => rhf.onChange(!field.required && value === UNSET ? "" : value)}
               disabled={disabled}
             >
               <SelectTrigger id={key} className="w-full" aria-invalid={Boolean(error)}>

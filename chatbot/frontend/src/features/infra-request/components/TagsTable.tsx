@@ -60,8 +60,10 @@ export function TagsTable({ fields, control, errors, disabled }: Props) {
                         control={control}
                         render={({ field: rhf }) => (
                           <Select
-                            value={rhf.value || UNSET}
-                            onValueChange={(value) => rhf.onChange(value === UNSET ? "" : value)}
+                            value={field.required ? rhf.value : rhf.value || UNSET}
+                            onValueChange={(value) =>
+                              rhf.onChange(!field.required && value === UNSET ? "" : value)
+                            }
                             disabled={disabled}
                           >
                             <SelectTrigger className="w-full" aria-invalid={Boolean(error)}>
