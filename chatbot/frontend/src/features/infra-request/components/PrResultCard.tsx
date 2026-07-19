@@ -2,9 +2,16 @@ import { AlertTriangle, CheckCircle2, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { ProposeOutcome } from "@/types/schema";
+import { MergePrButton } from "./MergePrButton";
+
+function prNumberFromUrl(prUrl: string): number | null {
+  const match = prUrl.match(/\/pull\/(\d+)/);
+  return match ? Number(match[1]) : null;
+}
 
 export function PrResultCard({ outcome }: { outcome: ProposeOutcome }) {
   if (outcome.status === "pr_opened") {
+    const prNumber = prNumberFromUrl(outcome.prUrl);
     return (
       <Card className="border-emerald-500/40">
         <CardHeader>
@@ -22,9 +29,11 @@ export function PrResultCard({ outcome }: { outcome: ProposeOutcome }) {
             {outcome.prUrl} <ExternalLink className="size-3.5" />
           </a>
           <p className="text-muted-foreground">
-            Branch <Badge variant="secondary">{outcome.branch}</Badge> — a human still needs to review and merge
-            before anything applies to Azure.
+            Branch <Badge variant="secondary">{outcome.branch}</Badge> — review the diff before merging. Merging
+            still triggers this repo&apos;s normal push→apply workflow and any environment approval gate configured
+            on it.
           </p>
+          {prNumber && <MergePrButton prNumber={prNumber} branch={outcome.branch} />}
         </CardContent>
       </Card>
     );

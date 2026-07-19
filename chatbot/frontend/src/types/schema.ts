@@ -89,3 +89,7 @@ export interface StructuredProposalInput {
   key: string;
   fields: Record<string, unknown>;
 }
+
+export type MergeOutcome =
+  | { status: "merged"; sha: string; prNumber: number }
+  | { status: "merge_failed"; error: string };

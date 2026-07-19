@@ -108,3 +108,49 @@ export function openPullRequest(branch: string, title: string, body: string): Op
     return { prUrl: null, compareUrl: compareUrl(branch) };
   }
 }
+
+export interface MergePrResult {
+  merged: boolean;
+  sha?: string;
+  error?: string;
+}
+
+/**
+ * Squash-merges a PR this same pipeline opened, via `gh api ... -X PUT`
+ * (same stdin-JSON pattern as openPullRequest, for the same reason: no
+ * free text on argv). This is still a human action — it only runs when a
+ * person clicks "Merge" in the chat UI after reviewing the preview/PR, the
+ * same authority a human already has clicking GitHub's own merge button.
+ * It does not touch the environment `apply` approval gate configured on
+ * the repo — merging triggers the push->apply workflow exactly as a
+ * manual GitHub merge would, still subject to whatever gate is configured
+ * there.
+ */
+export function mergePullRequest(prNumber: number): MergePrResult {
+  try {
+    const output = execFileSync(
+      "gh",
+      ["api", `repos/{owner}/{repo}/pulls/${prNumber}/merge`, "-X", "PUT", "--input", "-"],
+      {
+        cwd: REPO_ROOT,
+        encoding: "utf-8",
+        input: JSON.stringify({ merge_method: "squash" }),
+      }
+    );
+    const parsed = JSON.parse(output) as { merged: boolean; sha: string; message?: string };
+    return parsed.merged ? { merged: true, sha: parsed.sha } : { merged: false, error: parsed.message };
+  } catch (err) {
+    return { merged: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/** Deletes the remote branch after a successful merge — best-effort, never
+ * throws, since a leftover branch after a real merge isn't worth failing
+ * the whole request over. */
+export function deleteRemoteBranch(branch: string): void {
+  try {
+    git(["push", "origin", "--delete", branch]);
+  } catch {
+    // best-effort cleanup only
+  }
+}

@@ -1,4 +1,5 @@
 import type {
+  MergeOutcome,
   ModelEntriesResponse,
   PreviewOutcome,
   ProposeOutcome,
@@ -41,6 +42,12 @@ export const infraRequestApi = {
 
   propose: (input: StructuredProposalInput) =>
     requestJson<ProposeOutcome>("/api/backend/propose", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  mergePullRequest: (input: { prNumber: number; branch?: string }) =>
+    requestJson<MergeOutcome>("/api/backend/merge", {
       method: "POST",
       body: JSON.stringify(input),
     }),
