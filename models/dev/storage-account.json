@@ -15,15 +15,17 @@
         "purpose": "website"
       }
     },
-    "cdfgfdg": {
-      "name": "dfdff",
+    "test_storage_ui": {
+      "name": "test",
       "resource_group_key": "primary",
+      "account_tier": "Standard",
+      "account_replication_type": "LRS",
       "tags": {
         "environment": "dev",
         "owner": "platform-team",
         "costCenter": "CC-LEARN-001",
         "application": "azure-learning",
-        "dataClassification": "internal"
+        "dataClassification": "public"
       }
     }
   }

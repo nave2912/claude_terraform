@@ -22,24 +22,35 @@ interface Props {
   disabled?: boolean;
 }
 
+/** Sentinel for "no selection" — base-ui's Select doesn't accept a literal
+ * empty-string item value, so an optional enum field's "leave blank"
+ * option is represented by this and translated to "" on change. */
+const UNSET = "__unset__";
+
 export function SchemaField({ field, control, errors, optionsOverride, disabled }: Props) {
   const key = fieldKey(field.path);
   const error = errors[key]?.message as string | undefined;
   const options = optionsOverride ?? field.schema.enum;
+  const label = humanLabel(field.path) + (field.required ? "" : " (optional)");
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={key}>{humanLabel(field.path)}</Label>
+      <Label htmlFor={key}>{label}</Label>
       {options ? (
         <Controller
           name={key}
           control={control}
           render={({ field: rhf }) => (
-            <Select value={rhf.value} onValueChange={rhf.onChange} disabled={disabled}>
+            <Select
+              value={rhf.value || UNSET}
+              onValueChange={(value) => rhf.onChange(value === UNSET ? "" : value)}
+              disabled={disabled}
+            >
               <SelectTrigger id={key} className="w-full" aria-invalid={Boolean(error)}>
                 <SelectValue placeholder={`Select ${humanLabel(field.path).toLowerCase()}`} />
               </SelectTrigger>
               <SelectContent>
+                {!field.required && <SelectItem value={UNSET}>— none —</SelectItem>}
                 {options.map((opt) => (
                   <SelectItem key={opt} value={opt}>
                     {opt}

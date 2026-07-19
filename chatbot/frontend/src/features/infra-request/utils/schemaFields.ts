@@ -9,24 +9,31 @@ export interface FlatField {
   required: boolean;
 }
 
-/** Walks an entry schema's required fields into a flat input list, same
- * logic as the legacy static frontend's app.js buildFieldSteps(), just
- * flattened into one form instead of a sequential stepper. */
+/**
+ * Walks every field the schema defines — not just the required ones — so
+ * the form surfaces optional attributes (e.g. storage-account's
+ * account_tier, account_replication_type) too, each left genuinely
+ * optional: skip them and the backend's own schema default applies. Only
+ * fields actually listed in the schema's `required` array are enforced as
+ * mandatory; everything else is offered but never forced.
+ */
 export function flattenSchemaFields(entrySchema: EntrySchema): FlatField[] {
   const fields: FlatField[] = [];
-  for (const propName of entrySchema.required ?? []) {
+  const topRequired = entrySchema.required ?? [];
+
+  for (const propName of Object.keys(entrySchema.properties)) {
     const propSchema = entrySchema.properties[propName];
     if (propSchema.type === "object" && propSchema.properties) {
-      const nestedRequired = propSchema.required ?? Object.keys(propSchema.properties);
-      for (const subName of nestedRequired) {
+      const nestedRequired = propSchema.required ?? [];
+      for (const subName of Object.keys(propSchema.properties)) {
         fields.push({
           path: [propName, subName],
           schema: propSchema.properties[subName],
-          required: true,
+          required: nestedRequired.includes(subName),
         });
       }
     } else {
-      fields.push({ path: [propName], schema: propSchema, required: true });
+      fields.push({ path: [propName], schema: propSchema, required: topRequired.includes(propName) });
     }
   }
   return fields;
@@ -65,10 +72,17 @@ export function detectForeignKeyRef(schema: JsonSchemaProperty): { resourceType:
   return match ? { resourceType: match[1] } : null;
 }
 
-/** Builds a nested { name: {...}, tags: {...} } object from flat form values. */
+/**
+ * Builds a nested { name: {...}, tags: {...} } object from flat form
+ * values. Blank strings are omitted entirely rather than sent as "" — an
+ * optional field left empty should be absent from the payload (so the
+ * backend's schema default, e.g. account_tier's "Standard", applies) not
+ * submitted as an empty value that would fail enum/pattern validation.
+ */
 export function unflattenValues(values: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(values)) {
+    if (value === "") continue;
     const path = key.split("__");
     let cur = result;
     for (let i = 0; i < path.length - 1; i++) {
