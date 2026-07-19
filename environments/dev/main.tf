@@ -86,19 +86,23 @@ resource "azurerm_role_assignment" "chatbot_deployer_kv_secrets_officer" {
 }
 
 resource "azurerm_key_vault_secret" "chatbot_anthropic_api_key" {
-  name         = "anthropic-api-key"
-  value        = var.chatbot_anthropic_api_key
-  key_vault_id = module.key_vault["chatbot"].id
-  tags         = local.key_vault_model.key_vaults["chatbot"].tags
+  name            = "anthropic-api-key"
+  value           = var.chatbot_anthropic_api_key
+  key_vault_id    = module.key_vault["chatbot"].id
+  content_type    = "text/plain"
+  expiration_date = var.chatbot_secret_expiration_date
+  tags            = local.key_vault_model.key_vaults["chatbot"].tags
 
   depends_on = [azurerm_role_assignment.chatbot_deployer_kv_secrets_officer]
 }
 
 resource "azurerm_key_vault_secret" "chatbot_github_token" {
-  name         = "github-token"
-  value        = var.chatbot_github_token
-  key_vault_id = module.key_vault["chatbot"].id
-  tags         = local.key_vault_model.key_vaults["chatbot"].tags
+  name            = "github-token"
+  value           = var.chatbot_github_token
+  key_vault_id    = module.key_vault["chatbot"].id
+  content_type    = "text/plain"
+  expiration_date = var.chatbot_secret_expiration_date
+  tags            = local.key_vault_model.key_vaults["chatbot"].tags
 
   depends_on = [azurerm_role_assignment.chatbot_deployer_kv_secrets_officer]
 }

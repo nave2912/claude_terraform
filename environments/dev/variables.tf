@@ -37,3 +37,12 @@ variable "chatbot_github_token" {
   type        = string
   sensitive   = true
 }
+
+# A fixed date, not timestamp() — timestamp() re-evaluates on every plan and
+# would perpetually show these two secrets as changed. Bump this (and
+# rotate the actual secret values) roughly annually.
+variable "chatbot_secret_expiration_date" {
+  description = "Expiration date (RFC3339) set on the chatbot's Key Vault secrets. Update when rotating."
+  type        = string
+  default     = "2027-07-19T00:00:00Z"
+}
