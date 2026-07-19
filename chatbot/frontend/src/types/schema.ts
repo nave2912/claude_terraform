@@ -7,23 +7,31 @@
  */
 export interface JsonSchemaProperty {
   type?: string;
+  format?: string;
   description?: string;
   pattern?: string;
   minLength?: number;
+  minimum?: number;
+  maximum?: number;
   enum?: string[];
   default?: string;
   properties?: Record<string, JsonSchemaProperty>;
   required?: string[];
-  additionalProperties?: unknown;
+  /** true/false (allow/forbid extra keys) or a schema every extra key's
+   * value must satisfy — the latter is what makes an object a "map"
+   * (dynamic keys), same pattern this repo's own model files use at the
+   * top level (e.g. resource_groups: { <any key>: {...} }). */
+  additionalProperties?: boolean | JsonSchemaProperty;
+  /** Present when type === "array" — the schema every array element must
+   * satisfy. Absent/untyped items fall back to a raw-JSON editor. */
+  items?: JsonSchemaProperty;
   [key: string]: unknown;
 }
 
-export interface EntrySchema {
-  type: string;
-  required?: string[];
-  properties: Record<string, JsonSchemaProperty>;
-  additionalProperties?: unknown;
-}
+/** The per-entry schema (schema.properties[containerKey].additionalProperties)
+ * is just another JsonSchemaProperty node — kept as a distinct name only
+ * for readability at call sites, not a different shape. */
+export type EntrySchema = JsonSchemaProperty;
 
 export interface ResourceTypeInfo {
   resourceType: string;
@@ -93,3 +101,17 @@ export interface StructuredProposalInput {
 export type MergeOutcome =
   | { status: "merged"; sha: string; prNumber: number }
   | { status: "merge_failed"; error: string };
+
+export interface PrCheck {
+  name: string;
+  state: "success" | "failure" | "pending";
+}
+
+export interface PrStatusResponse {
+  overall: "success" | "failure" | "pending" | "none";
+  checks: PrCheck[];
+  planSummary?: string | null;
+  error?: string;
+}
+
+export type CommitStatusResponse = Omit<PrStatusResponse, "planSummary">;

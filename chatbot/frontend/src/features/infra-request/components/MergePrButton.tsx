@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { GitMerge, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { infraRequestApi } from "../services/infraRequest.api";
+import { ApplyStatusIndicator } from "./ApplyStatusIndicator";
 
 interface Props {
   prNumber: number;
@@ -29,10 +30,13 @@ export function MergePrButton({ prNumber, branch }: Props) {
 
   if (mergeMutation.data?.status === "merged") {
     return (
-      <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
-        <CheckCircle2 className="size-4" /> Merged (commit {mergeMutation.data.sha.slice(0, 7)}) — the branch was
-        deleted.
-      </p>
+      <div className="flex flex-col gap-2">
+        <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+          <CheckCircle2 className="size-4" /> Merged (commit {mergeMutation.data.sha.slice(0, 7)}) — the branch was
+          deleted.
+        </p>
+        <ApplyStatusIndicator sha={mergeMutation.data.sha} />
+      </div>
     );
   }
 

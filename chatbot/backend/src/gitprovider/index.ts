@@ -154,3 +154,155 @@ export function deleteRemoteBranch(branch: string): void {
     // best-effort cleanup only
   }
 }
+
+export interface PrCheck {
+  name: string;
+  state: "success" | "failure" | "pending";
+  detailsUrl?: string;
+}
+
+export interface PrStatusResult {
+  /** "none" = no CI checks configured/reported yet at all — distinct from
+   * "pending" (checks exist and are still running). */
+  overall: "success" | "failure" | "pending" | "none";
+  checks: PrCheck[];
+  /** Only populated once overall has settled (success/failure) and a
+   * "plan" check ran — extracted from the workflow run's own log via
+   * `gh run view --log`, not re-fetched on every poll. */
+  planSummary?: string | null;
+  error?: string;
+}
+
+type RawCheck = {
+  name?: string;
+  context?: string;
+  status?: string;
+  conclusion?: string | null;
+  state?: string;
+  detailsUrl?: string;
+  html_url?: string;
+};
+
+/**
+ * Normalizes one check-run/status-context entry (case varies: GraphQL's
+ * statusCheckRollup uses upper-case SUCCESS/COMPLETED, the REST
+ * check-runs API uses lower-case success/completed) into a three-state
+ * result, or null for a check that was skipped entirely (e.g. this repo's
+ * `apply` job, which is `if: github.event_name == 'push'` and so always
+ * reports SKIPPED on a pull_request-triggered run — not relevant pre-merge
+ * and would be misleading to show as passing).
+ */
+function normalizeCheck(c: RawCheck): PrCheck | null {
+  const name = c.name ?? c.context ?? "check";
+  const detailsUrl = c.detailsUrl ?? c.html_url;
+  const conclusion = c.conclusion?.toUpperCase();
+  const status = c.status?.toUpperCase();
+
+  if (conclusion) {
+    if (conclusion === "SKIPPED") return null;
+    const success = conclusion === "SUCCESS" || conclusion === "NEUTRAL";
+    return { name, state: success ? "success" : "failure", detailsUrl };
+  }
+  if (status && status !== "COMPLETED") {
+    return { name, state: "pending", detailsUrl };
+  }
+  if (c.state) {
+    const state = c.state.toUpperCase();
+    if (state === "SUCCESS") return { name, state: "success", detailsUrl };
+    if (state === "PENDING") return { name, state: "pending", detailsUrl };
+    return { name, state: "failure", detailsUrl };
+  }
+  return { name, state: "pending", detailsUrl };
+}
+
+function overallFrom(checks: PrCheck[]): PrStatusResult["overall"] {
+  if (checks.length === 0) return "none";
+  if (checks.some((c) => c.state === "failure")) return "failure";
+  if (checks.some((c) => c.state === "pending")) return "pending";
+  return "success";
+}
+
+/**
+ * Extracts the `terraform plan` summary line ("Plan: N to add, N to
+ * change, N to destroy." or "No changes...") from the plan check's own
+ * workflow run log, via `gh run view --log` — the checks API only reports
+ * pass/fail, not what would actually change, and that's the piece a human
+ * needs to make a real merge decision from chat instead of clicking
+ * through to GitHub.
+ */
+function extractPlanSummary(planCheck: PrCheck | undefined): string | null {
+  if (!planCheck?.detailsUrl) return null;
+  const runIdMatch = planCheck.detailsUrl.match(/\/runs\/(\d+)\//);
+  if (!runIdMatch) return null;
+  try {
+    const log = execFileSync("gh", ["run", "view", runIdMatch[1], "--log"], {
+      cwd: REPO_ROOT,
+      encoding: "utf-8",
+      maxBuffer: 10 * 1024 * 1024,
+    })
+      // `gh run view --log` emits ANSI color codes as a literal caret +
+      // bracket pair ("^[[1m") rather than the real ESC control byte —
+      // observed empirically, strip both forms defensively.
+      // eslint-disable-next-line no-control-regex
+      .replace(/\x1b\[[0-9;]*m/g, "")
+      .replace(/\^\[\[[0-9;]*m/g, "");
+    const match = log.match(
+      /Plan: \d+ to add, \d+ to change, \d+ to destroy\.|No changes\. Your infrastructure matches the configuration\./
+    );
+    return match?.[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reads the PR's own CI status (the pull_request-triggered validate/plan
+ * workflow) via `gh pr view --json statusCheckRollup` — this is what
+ * gates whether the chat UI is allowed to offer a merge button at all.
+ */
+export function getPrStatus(prNumber: number): PrStatusResult {
+  try {
+    const output = execFileSync(
+      "gh",
+      ["pr", "view", String(prNumber), "--json", "statusCheckRollup"],
+      { cwd: REPO_ROOT, encoding: "utf-8" }
+    );
+    const parsed = JSON.parse(output) as { statusCheckRollup: RawCheck[] };
+    const checks = (parsed.statusCheckRollup ?? [])
+      .map(normalizeCheck)
+      .filter((c): c is PrCheck => c !== null);
+    const overall = overallFrom(checks);
+
+    let planSummary: string | null | undefined;
+    if (overall === "success" || overall === "failure") {
+      planSummary = extractPlanSummary(checks.find((c) => c.name === "plan"));
+    }
+
+    return { overall, checks, planSummary };
+  } catch (err) {
+    return { overall: "none", checks: [], error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
+ * Same shape as getPrStatus, but for a single commit (used after a merge
+ * to track the resulting push->apply workflow run, which the PR's own
+ * pull_request-triggered checks never included since `apply` only runs on
+ * push). Uses the REST check-runs endpoint since there's no PR to view.
+ */
+export function getCommitStatus(sha: string): PrStatusResult {
+  try {
+    const output = execFileSync(
+      "gh",
+      ["api", `repos/{owner}/{repo}/commits/${sha}/check-runs`],
+      { cwd: REPO_ROOT, encoding: "utf-8" }
+    );
+    const parsed = JSON.parse(output) as { check_runs: RawCheck[] };
+    const checks = (parsed.check_runs ?? [])
+      .map(normalizeCheck)
+      .filter((c): c is PrCheck => c !== null);
+    return { overall: overallFrom(checks), checks };
+  } catch (err) {
+    return { overall: "none", checks: [], error: err instanceof Error ? err.message : String(err) };
+  }
+}

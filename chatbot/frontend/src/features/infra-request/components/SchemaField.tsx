@@ -1,83 +1,58 @@
 "use client";
 
-import { Controller, type Control, type FieldErrors } from "react-hook-form";
-import { Input } from "@/components/ui/input";
+import type { Control, FieldErrors } from "react-hook-form";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import type { FlatField } from "../utils/schemaFields";
-import { fieldKey, humanLabel } from "../utils/schemaFields";
+import type { JsonSchemaProperty } from "@/types/schema";
+import { classifyField } from "../utils/schemaTree";
+import { getFieldError } from "../utils/formErrors";
+import { humanLabel } from "../utils/schemaFields";
+import { PrimitiveCellInput } from "./PrimitiveCellInput";
 
 interface Props {
-  field: FlatField;
-  control: Control<Record<string, string>>;
-  errors: FieldErrors<Record<string, string>>;
+  name: string;
+  displayName: string;
+  schema: JsonSchemaProperty;
+  required: boolean;
+  control: Control;
+  errors: FieldErrors;
   /** Overrides enum options — used for foreign-key fields resolved from /model-entries. */
   optionsOverride?: string[];
   disabled?: boolean;
 }
 
-/** Sentinel for "no selection" — base-ui's Select doesn't accept a literal
- * empty-string item value, so an optional enum field's "leave blank"
- * option is represented by this and translated to "" on change. */
-const UNSET = "__unset__";
+/** One labeled string/enum/number/boolean field. Any other shape (object,
+ * array, map, raw-json) is handled by a different component — see
+ * SchemaObjectFields for the full dispatch table. */
+export function SchemaField({ name, displayName, schema, required, control, errors, optionsOverride, disabled }: Props) {
+  const error = getFieldError(errors, name);
+  const kind = classifyField(schema);
+  const label = humanLabel(displayName) + (required ? "" : " (optional)");
 
-export function SchemaField({ field, control, errors, optionsOverride, disabled }: Props) {
-  const key = fieldKey(field.path);
-  const error = errors[key]?.message as string | undefined;
-  const options = optionsOverride ?? field.schema.enum;
-  const label = humanLabel(field.path) + (field.required ? "" : " (optional)");
+  if (kind.kind === "boolean") {
+    return (
+      <div className="flex items-center gap-2">
+        <PrimitiveCellInput name={name} schema={schema} required={required} control={control} disabled={disabled} />
+        <Label htmlFor={name} className="font-normal">
+          {label}
+        </Label>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={key}>{label}</Label>
-      {options ? (
-        <Controller
-          name={key}
-          control={control}
-          render={({ field: rhf }) => (
-            <Select
-              value={rhf.value || UNSET}
-              onValueChange={(value) => rhf.onChange(value === UNSET ? "" : value)}
-              disabled={disabled}
-            >
-              <SelectTrigger id={key} className="w-full" aria-invalid={Boolean(error)}>
-                <SelectValue placeholder={`Select ${humanLabel(field.path).toLowerCase()}`} />
-              </SelectTrigger>
-              <SelectContent>
-                {!field.required && <SelectItem value={UNSET}>— none —</SelectItem>}
-                {options.map((opt) => (
-                  <SelectItem key={opt} value={opt}>
-                    {opt}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        />
-      ) : (
-        <Controller
-          name={key}
-          control={control}
-          render={({ field: rhf }) => (
-            <Input
-              id={key}
-              {...rhf}
-              disabled={disabled}
-              aria-invalid={Boolean(error)}
-              placeholder={field.schema.pattern ? `pattern: ${field.schema.pattern}` : undefined}
-            />
-          )}
-        />
-      )}
-      {field.schema.description && !error && (
-        <p className="text-xs text-muted-foreground">{field.schema.description}</p>
-      )}
+      <Label htmlFor={name}>{label}</Label>
+      <PrimitiveCellInput
+        name={name}
+        schema={schema}
+        required={required}
+        control={control}
+        disabled={disabled}
+        ariaInvalid={Boolean(error)}
+        optionsOverride={optionsOverride}
+        placeholder={optionsOverride ? `Select ${humanLabel(displayName).toLowerCase()}` : undefined}
+      />
+      {schema.description && !error && <p className="text-xs text-muted-foreground">{schema.description}</p>}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );

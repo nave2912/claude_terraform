@@ -1,8 +1,10 @@
 import type {
+  CommitStatusResponse,
   MergeOutcome,
   ModelEntriesResponse,
   PreviewOutcome,
   ProposeOutcome,
+  PrStatusResponse,
   SchemaInfoResponse,
   StructuredProposalInput,
 } from "@/types/schema";
@@ -51,4 +53,10 @@ export const infraRequestApi = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+
+  getPrStatus: (prNumber: number) =>
+    requestJson<PrStatusResponse>(`/api/backend/pr-status?prNumber=${prNumber}`),
+
+  getCommitStatus: (sha: string) =>
+    requestJson<CommitStatusResponse>(`/api/backend/commit-status?sha=${encodeURIComponent(sha)}`),
 };
