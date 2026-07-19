@@ -1,0 +1,18 @@
+{
+  "static_web_apps": {
+    "chatbot": {
+      "name": "naveenkumar",
+      "resource_group_key": "primary",
+      "location": "eastus2",
+      "sku_tier": "Free",
+      "sku_size": "Free",
+      "tags": {
+        "environment": "dev",
+        "owner": "platform-team",
+        "costCenter": "CC-LEARN-001",
+        "application": "terraform-chatbot",
+        "dataClassification": "confidential"
+      }
+    }
+  }
+}

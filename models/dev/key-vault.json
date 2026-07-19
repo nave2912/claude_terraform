@@ -1,0 +1,18 @@
+{
+  "key_vaults": {
+    "chatbot": {
+      "name": "kv-chatbot-naveenk",
+      "resource_group_key": "primary",
+      "sku_name": "standard",
+      "purge_protection_enabled": false,
+      "soft_delete_retention_days": 7,
+      "tags": {
+        "environment": "dev",
+        "owner": "platform-team",
+        "costCenter": "CC-LEARN-001",
+        "application": "terraform-chatbot",
+        "dataClassification": "confidential"
+      }
+    }
+  }
+}

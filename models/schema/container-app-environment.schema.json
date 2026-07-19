@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://internal/schemas/container-app-environment.schema.json",
+  "title": "Container Apps Environment Model",
+  "description": "Schema for JSON-driven Azure Container Apps environment definitions consumed by environments/<env>/main.tf",
+  "type": "object",
+  "required": ["container_app_environments"],
+  "additionalProperties": false,
+  "properties": {
+    "container_app_environments": {
+      "type": "object",
+      "description": "Map keyed by a stable logical id. The key becomes the for_each key in Terraform.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["name", "resource_group_key", "log_analytics_workspace_key", "tags"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Container Apps environment name."
+          },
+          "resource_group_key": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Logical id of the resource group (key under resource_groups in resource-group.json) to deploy into. Location is inherited from that resource group."
+          },
+          "log_analytics_workspace_key": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Logical id of the workspace (key under log_analytics_workspaces in log-analytics-workspace.json) this environment sends logs to."
+          },
+          "tags": {
+            "type": "object",
+            "required": [
+              "environment",
+              "owner",
+              "costCenter",
+              "application",
+              "dataClassification"
+            ],
+            "properties": {
+              "environment": { "type": "string", "enum": ["dev", "qa", "prod"] },
+              "owner": { "type": "string", "minLength": 1 },
+              "costCenter": { "type": "string", "minLength": 1 },
+              "application": { "type": "string", "minLength": 1 },
+              "dataClassification": {
+                "type": "string",
+                "enum": ["public", "internal", "confidential", "restricted"]
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

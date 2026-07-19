@@ -90,6 +90,7 @@ jobs:
     needs: validate
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 15 # a hung terraform command (e.g. an unset required -var it silently prompts for) would otherwise hold the state lock for up to GitHub's default 360-minute job timeout
     environment: ${{ github.event.inputs.environment || 'dev' }} # GitHub Environment protection rules gate prod approval
     defaults:
       run:
@@ -126,16 +127,20 @@ jobs:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_BACKEND_SUBSCRIPTION_ID }}
-          ARM_USE_OIDC: true      
+          ARM_USE_OIDC: true
         run: |
           terraform plan \
+            -input=false \
             -var-file=terraform.tfvars \
-            -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-            
+            -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+            -var="chatbot_anthropic_api_key=${{ secrets.CHATBOT_ANTHROPIC_API_KEY }}" \
+            -var="chatbot_github_token=${{ secrets.CHATBOT_GITHUB_TOKEN }}"
+
   apply:
     needs: validate
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment: ${{ github.event.inputs.environment || 'dev' }} # GitHub Environment protection rules gate prod approval
     defaults:
       run:
@@ -172,19 +177,25 @@ jobs:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_BACKEND_SUBSCRIPTION_ID }}
-          ARM_USE_OIDC: true      
+          ARM_USE_OIDC: true
         run: |
           terraform plan \
+            -input=false \
             -var-file=terraform.tfvars \
-            -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-            
+            -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+            -var="chatbot_anthropic_api_key=${{ secrets.CHATBOT_ANTHROPIC_API_KEY }}" \
+            -var="chatbot_github_token=${{ secrets.CHATBOT_GITHUB_TOKEN }}"
+
       - name: terraform apply
         env:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_BACKEND_SUBSCRIPTION_ID }}
-          ARM_USE_OIDC: true      
+          ARM_USE_OIDC: true
         run: |
           terraform apply -auto-approve \
+            -input=false \
             -var-file=terraform.tfvars \
-            -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+            -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+            -var="chatbot_anthropic_api_key=${{ secrets.CHATBOT_ANTHROPIC_API_KEY }}" \
+            -var="chatbot_github_token=${{ secrets.CHATBOT_GITHUB_TOKEN }}"

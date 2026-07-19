@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://internal/schemas/key-vault.schema.json",
+  "title": "Key Vault Model",
+  "description": "Schema for JSON-driven Azure Key Vault definitions consumed by environments/<env>/main.tf",
+  "type": "object",
+  "required": ["key_vaults"],
+  "additionalProperties": false,
+  "properties": {
+    "key_vaults": {
+      "type": "object",
+      "description": "Map keyed by a stable logical id. The key becomes the for_each key in Terraform.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["name", "resource_group_key", "tags"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9-]{1,22}[a-zA-Z0-9]$",
+            "description": "Key Vault name, 3-24 chars, must start with a letter, globally unique."
+          },
+          "resource_group_key": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Logical id of the resource group (key under resource_groups in resource-group.json) to deploy into. Location is inherited from that resource group."
+          },
+          "sku_name": {
+            "type": "string",
+            "enum": ["standard", "premium"],
+            "default": "standard"
+          },
+          "purge_protection_enabled": {
+            "type": "boolean",
+            "default": false,
+            "description": "Disabling allows the vault name to be reused immediately after destroy — appropriate for dev/platform-tooling vaults."
+          },
+          "soft_delete_retention_days": {
+            "type": "integer",
+            "minimum": 7,
+            "maximum": 90,
+            "default": 7
+          },
+          "tags": {
+            "type": "object",
+            "required": [
+              "environment",
+              "owner",
+              "costCenter",
+              "application",
+              "dataClassification"
+            ],
+            "properties": {
+              "environment": { "type": "string", "enum": ["dev", "qa", "prod"] },
+              "owner": { "type": "string", "minLength": 1 },
+              "costCenter": { "type": "string", "minLength": 1 },
+              "application": { "type": "string", "minLength": 1 },
+              "dataClassification": {
+                "type": "string",
+                "enum": ["public", "internal", "confidential", "restricted"]
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

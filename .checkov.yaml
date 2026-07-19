@@ -10,9 +10,7 @@ skip-path:
   - tests
 
 # Each entry here is a deliberate, justified bypass — not a blanket
-# suppression. All apply to modules/storage_account/main.tf today (the only
-# resource of this type in the repo); revisit if a second storage account
-# consumer with different requirements is ever added.
+# suppression.
 skip-check:
   # LRS is the module's default replication tier, kept for cost in this
   # dev/learning subscription. Callers can opt into ZRS/GRS per-entry via
@@ -40,6 +38,48 @@ skip-check:
   # the underlying config is already correct, not because the finding was
   # ignored.
   - CKV_AZURE_244
+
+  # --- modules/container_registry (Basic SKU, deliberately) ---
+  # Vulnerability scanning, image quarantine/signing, dedicated data
+  # endpoints, and zone redundancy are all Premium-tier-only ACR features.
+  # Premium is ~$40/day vs. Basic's ~$0.17/day — a deliberate cost tradeoff
+  # for this dev/platform-tooling registry, not an oversight. Revisit if
+  # this registry ever needs to hold anything beyond the chatbot's own
+  # backend image.
+  - CKV_AZURE_163 # vulnerability scanning
+  - CKV_AZURE_164 # signed/trusted images
+  - CKV_AZURE_237 # dedicated data endpoints
+  - CKV_AZURE_166 # image quarantine/scan
+  - CKV_AZURE_233 # zone redundancy
+  - CKV_AZURE_167 # untagged manifest retention policy
+  # Geo-replication is also Premium-tier-only — this is a single-region
+  # dev/platform-tooling registry, not a multi-region deployment.
+  - CKV_AZURE_165
+  # Disabling public network access requires a Private Endpoint, which
+  # requires Premium SKU + VNET integration — neither exists in this
+  # framework yet (no VNET wiring for platform-tooling resources). The
+  # registry is still auth-gated (admin_enabled = false, AAD/managed-identity
+  # pull only), just not network-isolated.
+  - CKV_AZURE_139
+
+  # --- modules/key_vault ---
+  # purge_protection_enabled defaults to false and is a documented,
+  # intentional module input (see modules/key_vault/README.md) — allows
+  # reusing a vault name immediately after destroy for dev/platform-tooling
+  # vaults. Not appropriate for a vault holding long-lived production
+  # secrets; callers can set purge_protection_enabled = true per-instance.
+  - CKV_AZURE_110
+  # network_acls IS explicitly configured (bypass = "AzureServices"), but
+  # this check specifically requires default_action = "Deny" to pass.
+  # Deny would block `terraform apply` itself — GitHub-hosted Actions
+  # runners have dynamic public IPs not covered by the AzureServices
+  # bypass, and there's no self-hosted-runner/VNET setup to exempt CI from
+  # the firewall. Same underlying gap as CKV_AZURE_189/CKV2_AZURE_32 below.
+  - CKV_AZURE_109
+  # Disabling public network access needs a Private Endpoint (same Premium +
+  # VNET gap as the registry above).
+  - CKV_AZURE_189
+  - CKV2_AZURE_32
 
 download-external-modules: false
 
