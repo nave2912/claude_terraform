@@ -3,7 +3,10 @@
 Creates a single `azurerm_virtual_network` plus zero or more `azurerm_subnet`
 resources declared inline via the `subnets` map. Subnets have no independent
 lifecycle in this framework, so they live in this module rather than a
-separate one.
+separate one. Each subnet gets its own `azurerm_network_security_group`
+(Azure's built-in default rules only, no custom rules yet) associated via
+`azurerm_subnet_network_security_group_association`, satisfying
+CKV2_AZURE_31 ("VNET subnet is configured with an NSG").
 
 ## Usage
 
@@ -54,4 +57,5 @@ environment root, with `location`/`resource_group_name` derived from the
 | `id` | Virtual network resource ID |
 | `name` | Virtual network name |
 | `subnet_ids` | Map of logical subnet id to subnet resource ID |
+| `subnet_nsg_ids` | Map of logical subnet id to its associated NSG resource ID |
 | `tags` | Applied tags |

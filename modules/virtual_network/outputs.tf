@@ -13,6 +13,11 @@ output "subnet_ids" {
   value       = { for key, subnet in azurerm_subnet.this : key => subnet.id }
 }
 
+output "subnet_nsg_ids" {
+  description = "Map of logical subnet id to its associated network security group resource ID."
+  value       = { for key, nsg in azurerm_network_security_group.this : key => nsg.id }
+}
+
 output "tags" {
   description = "Tags applied to the virtual network."
   value       = azurerm_virtual_network.this.tags
