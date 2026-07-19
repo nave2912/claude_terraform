@@ -154,3 +154,74 @@ export function deleteRemoteBranch(branch: string): void {
     // best-effort cleanup only
   }
 }
+
+export interface PrCheck {
+  name: string;
+  state: "success" | "failure" | "pending";
+}
+
+export interface PrStatusResult {
+  /** "none" = no CI checks configured/reported yet for this PR at all —
+   * distinct from "pending" (checks exist and are still running). */
+  overall: "success" | "failure" | "pending" | "none";
+  checks: PrCheck[];
+  error?: string;
+}
+
+/**
+ * Reads the PR's own CI status (the pull_request-triggered validate/plan
+ * workflow) via `gh pr view --json statusCheckRollup` — this is what
+ * gates whether the chat UI is allowed to offer a merge button at all.
+ * GitHub's rollup mixes two shapes (newer CheckRun objects with
+ * status/conclusion, older commit-status objects with just state) so both
+ * are normalized here into one three-state result per check.
+ */
+export function getPrStatus(prNumber: number): PrStatusResult {
+  try {
+    const output = execFileSync(
+      "gh",
+      ["pr", "view", String(prNumber), "--json", "statusCheckRollup"],
+      { cwd: REPO_ROOT, encoding: "utf-8" }
+    );
+    const parsed = JSON.parse(output) as {
+      statusCheckRollup: Array<{
+        name?: string;
+        context?: string;
+        status?: string;
+        conclusion?: string | null;
+        state?: string;
+      }>;
+    };
+    const rollup = parsed.statusCheckRollup ?? [];
+    if (rollup.length === 0) {
+      return { overall: "none", checks: [] };
+    }
+
+    const checks: PrCheck[] = rollup.map((c) => {
+      const name = c.name ?? c.context ?? "check";
+      if (c.conclusion) {
+        const success = c.conclusion === "SUCCESS" || c.conclusion === "SKIPPED" || c.conclusion === "NEUTRAL";
+        return { name, state: success ? "success" : "failure" };
+      }
+      if (c.status && c.status !== "COMPLETED") {
+        return { name, state: "pending" };
+      }
+      if (c.state) {
+        if (c.state === "SUCCESS") return { name, state: "success" };
+        if (c.state === "PENDING") return { name, state: "pending" };
+        return { name, state: "failure" };
+      }
+      return { name, state: "pending" };
+    });
+
+    const overall: PrStatusResult["overall"] = checks.some((c) => c.state === "failure")
+      ? "failure"
+      : checks.some((c) => c.state === "pending")
+        ? "pending"
+        : "success";
+
+    return { overall, checks };
+  } catch (err) {
+    return { overall: "none", checks: [], error: err instanceof Error ? err.message : String(err) };
+  }
+}

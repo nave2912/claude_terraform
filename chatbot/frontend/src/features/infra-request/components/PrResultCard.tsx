@@ -2,7 +2,7 @@ import { AlertTriangle, CheckCircle2, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { ProposeOutcome } from "@/types/schema";
-import { MergePrButton } from "./MergePrButton";
+import { PrStatusIndicator } from "./PrStatusIndicator";
 
 function prNumberFromUrl(prUrl: string): number | null {
   const match = prUrl.match(/\/pull\/(\d+)/);
@@ -29,11 +29,10 @@ export function PrResultCard({ outcome }: { outcome: ProposeOutcome }) {
             {outcome.prUrl} <ExternalLink className="size-3.5" />
           </a>
           <p className="text-muted-foreground">
-            Branch <Badge variant="secondary">{outcome.branch}</Badge> — review the diff before merging. Merging
-            still triggers this repo&apos;s normal push→apply workflow and any environment approval gate configured
-            on it.
+            Branch <Badge variant="secondary">{outcome.branch}</Badge> — merging still triggers this repo&apos;s
+            normal push→apply workflow and any environment approval gate configured on it.
           </p>
-          {prNumber && <MergePrButton prNumber={prNumber} branch={outcome.branch} />}
+          {prNumber && <PrStatusIndicator prNumber={prNumber} branch={outcome.branch} />}
         </CardContent>
       </Card>
     );

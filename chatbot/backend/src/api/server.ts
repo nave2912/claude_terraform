@@ -29,7 +29,7 @@ import { proposeStructuredChange } from "../pipeline/proposeStructuredChange.js"
 import { validateEntry, listResourceTypes, getResourceType } from "../validators/index.js";
 import { mergeEntry } from "../modelwriter/index.js";
 import { modelFilePath } from "../config/paths.js";
-import { mergePullRequest, deleteRemoteBranch } from "../gitprovider/index.js";
+import { mergePullRequest, deleteRemoteBranch, getPrStatus } from "../gitprovider/index.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const API_KEY = process.env.API_KEY;
@@ -226,6 +226,24 @@ app.post("/propose-structured", requireApiKey, async (req: Request, res: Respons
 });
 
 /**
+ * Read-only PR CI status (the pull_request-triggered validate/plan
+ * workflow) — this is what the frontend polls to decide whether to show
+ * the merge button at all. No LLM, no writes.
+ */
+app.get("/pr-status", requireApiKey, (req: Request, res: Response) => {
+  const prNumber = Number(req.query.prNumber);
+  if (!Number.isInteger(prNumber) || prNumber <= 0) {
+    res.status(400).json({ error: "query param required: prNumber (positive integer)" });
+    return;
+  }
+  try {
+    res.json(getPrStatus(prNumber));
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+/**
  * Squash-merges a PR this pipeline opened. Deliberately requires the
  * caller to already know the PR number (returned from /propose-structured)
  * — this endpoint doesn't search for or guess which PR to merge. Merging
@@ -263,5 +281,6 @@ app.listen(PORT, () => {
   console.log(`  POST /propose           - free-text full pipeline (LLM), requires x-api-key`);
   console.log(`  POST /preview-structured - fixed-schema preview, requires x-api-key`);
   console.log(`  POST /propose-structured - fixed-schema full pipeline, requires x-api-key`);
+  console.log(`  GET  /pr-status          - PR CI check status, requires x-api-key`);
   console.log(`  POST /merge-pr           - squash-merge a PR this pipeline opened, requires x-api-key`);
 });

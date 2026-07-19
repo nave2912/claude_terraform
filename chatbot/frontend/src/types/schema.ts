@@ -93,3 +93,14 @@ export interface StructuredProposalInput {
 export type MergeOutcome =
   | { status: "merged"; sha: string; prNumber: number }
   | { status: "merge_failed"; error: string };
+
+export interface PrCheck {
+  name: string;
+  state: "success" | "failure" | "pending";
+}
+
+export interface PrStatusResponse {
+  overall: "success" | "failure" | "pending" | "none";
+  checks: PrCheck[];
+  error?: string;
+}

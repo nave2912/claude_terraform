@@ -3,6 +3,7 @@ import type {
   ModelEntriesResponse,
   PreviewOutcome,
   ProposeOutcome,
+  PrStatusResponse,
   SchemaInfoResponse,
   StructuredProposalInput,
 } from "@/types/schema";
@@ -51,4 +52,7 @@ export const infraRequestApi = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+
+  getPrStatus: (prNumber: number) =>
+    requestJson<PrStatusResponse>(`/api/backend/pr-status?prNumber=${prNumber}`),
 };
