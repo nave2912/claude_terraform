@@ -6,6 +6,7 @@
 locals {
   resource_group_model  = jsondecode(file("${path.module}/../../models/${var.environment}/resource-group.json"))
   storage_account_model = jsondecode(file("${path.module}/../../models/${var.environment}/storage-account.json"))
+  virtual_network_model = jsondecode(file("${path.module}/../../models/${var.environment}/virtual-network.json"))
 }
 
 module "resource_group" {
@@ -30,4 +31,17 @@ module "storage_account" {
   account_tier             = each.value.account_tier
   account_replication_type = each.value.account_replication_type
   tags                     = each.value.tags
+}
+
+module "virtual_network" {
+  source = "../../modules/virtual_network"
+
+  for_each = local.virtual_network_model.virtual_networks
+
+  name                = each.value.name
+  location            = module.resource_group[each.value.resource_group_key].location
+  resource_group_name = module.resource_group[each.value.resource_group_key].name
+  address_space       = each.value.address_space
+  subnets             = try(each.value.subnets, {})
+  tags                = each.value.tags
 }
