@@ -14,10 +14,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ResourceTypeInfo, StructuredProposalInput } from "@/types/schema";
 import { useSchemaForm } from "../hooks/useSchemaForm";
-import { detectForeignKeyRef, fieldKey, unflattenValues } from "../utils/schemaFields";
-import { SchemaField } from "./SchemaField";
-import { ForeignKeyField } from "./ForeignKeyField";
-import { TagsTable } from "./TagsTable";
+import { coerceSubmissionValue, findEnumFieldPaths } from "../utils/schemaTree";
+import { SchemaObjectFields } from "./SchemaObjectFields";
 
 interface Props {
   resourceType: ResourceTypeInfo;
@@ -30,13 +28,16 @@ interface Props {
 const KEY_PATTERN = /^[a-z][a-z0-9_]*$/;
 
 /**
- * The single-submit form the whole feature is built around: every required
- * field from the resource's schema, generated dynamically (see
- * useSchemaForm), plus the two pipeline-level fields the schema itself
- * doesn't define (environment for routing, key as the JSON map id).
- * Nothing here is free text sent to an LLM — this is what actually reaches
- * POST /propose-structured, validated client-side by zod and re-validated
- * server-side by the same ajv schema either way.
+ * The single-submit form the whole feature is built around: every field
+ * the resource's schema defines, generated dynamically and recursively
+ * (see SchemaObjectFields + utils/schemaTree.ts) — nested objects, arrays
+ * of primitives, arrays of objects (tables), dynamic-key maps, and a raw
+ * JSON fallback for anything with no sane bespoke widget. Plus the two
+ * pipeline-level fields the schema itself doesn't define (environment for
+ * routing, key as the JSON map id). Nothing here is free text sent to an
+ * LLM — this is what actually reaches POST /propose-structured, validated
+ * client-side by zod and re-validated server-side by the same ajv schema
+ * either way.
  */
 export function DynamicResourceForm({
   resourceType,
@@ -49,14 +50,12 @@ export function DynamicResourceForm({
   const [key, setKey] = useState("");
   const [keyTouched, setKeyTouched] = useState(false);
 
-  const { form, fields } = useSchemaForm(resourceType, environment);
+  const { form, entrySchema } = useSchemaForm(resourceType, environment);
   const { control, handleSubmit, formState, setValue } = form;
 
   useEffect(() => {
-    for (const field of fields) {
-      if (field.path[field.path.length - 1] === "environment" && field.schema.enum?.includes(environment)) {
-        setValue(fieldKey(field.path), environment);
-      }
+    for (const path of findEnumFieldPaths(entrySchema, "environment")) {
+      setValue(path, environment);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [environment]);
@@ -66,12 +65,8 @@ export function DynamicResourceForm({
   const submit = handleSubmit((values) => {
     setKeyTouched(true);
     if (!KEY_PATTERN.test(key)) return;
-    onSubmit({
-      resourceType: resourceType.resourceType,
-      environment,
-      key,
-      fields: unflattenValues(values),
-    });
+    const fields = coerceSubmissionValue(entrySchema, values, true) as Record<string, unknown>;
+    onSubmit({ resourceType: resourceType.resourceType, environment, key, fields });
   });
 
   return (
@@ -118,32 +113,10 @@ export function DynamicResourceForm({
             {keyError && <p className="text-xs text-destructive">{keyError}</p>}
           </div>
 
-          {fields
-            .filter((field) => field.path[0] !== "tags")
-            .map((field) => {
-              const fk = detectForeignKeyRef(field.schema);
-              return fk ? (
-                <ForeignKeyField
-                  key={fieldKey(field.path)}
-                  field={field}
-                  refResourceType={fk.resourceType}
-                  environment={environment}
-                  control={control}
-                  errors={formState.errors}
-                />
-              ) : (
-                <SchemaField
-                  key={fieldKey(field.path)}
-                  field={field}
-                  control={control}
-                  errors={formState.errors}
-                  disabled={submitting}
-                />
-              );
-            })}
-
-          <TagsTable
-            fields={fields.filter((field) => field.path[0] === "tags")}
+          <SchemaObjectFields
+            schema={entrySchema}
+            pathPrefix={[]}
+            environment={environment}
             control={control}
             errors={formState.errors}
             disabled={submitting}

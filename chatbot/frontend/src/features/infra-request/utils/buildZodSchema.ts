@@ -1,42 +1,92 @@
 import { z } from "zod";
-import type { FlatField } from "./schemaFields";
-import { fieldKey } from "./schemaFields";
+import type { JsonSchemaProperty } from "@/types/schema";
+import { classifyField, isDeepEmpty, tryParseJson } from "./schemaTree";
 
 /**
- * Turns the flattened JSON-Schema fields into a zod object schema so
- * react-hook-form can validate client-side before anything is sent to
- * /preview-structured. This is a client-side convenience layer only — the
- * backend re-validates with ajv against the real schema regardless, so a
- * gap here is a UX annoyance, not a safety hole.
+ * Recursively mirrors classifyField's dispatch (schemaTree.ts) into a zod
+ * schema, so client-side validation always agrees with how a field is
+ * actually rendered — a group-table's fields validate as a nested object,
+ * an array-object-table validates as an array of objects, etc. This is a
+ * convenience layer only: the backend re-validates the final payload with
+ * ajv against the real JSON Schema regardless, so a gap here is a UX
+ * annoyance, not a safety hole.
  *
- * Every field is a controlled string input, so "not filled in" is "" —
- * never undefined. Required fields reject "". Optional fields accept ""
- * (union with z.literal("")) but still enforce pattern/enum/minLength the
- * moment a non-empty value is typed — "optional" means "not mandatory",
- * not "unvalidated".
+ * Every leaf is a string in form state (even numbers/raw-json — kept as
+ * text for simple, consistent <Input> binding) and converted to its real
+ * type later by schemaTree.ts's coerceSubmissionValue. Optional leaves
+ * accept "" so a genuinely blank field never fails validation just for
+ * being empty; they still enforce pattern/enum/etc. the moment something
+ * is typed.
  */
-export function buildZodSchema(fields: FlatField[]) {
-  const shape: Record<string, z.ZodTypeAny> = {};
+export function buildFieldZodSchema(schema: JsonSchemaProperty, required: boolean): z.ZodTypeAny {
+  const kind = classifyField(schema);
 
-  for (const field of fields) {
-    let schema: z.ZodTypeAny;
-    if (field.schema.enum) {
-      schema = z.enum(field.schema.enum as [string, ...string[]]);
-    } else {
-      let str = z.string();
-      if (field.schema.minLength) {
-        str = str.min(field.schema.minLength, `Must be at least ${field.schema.minLength} characters`);
-      } else if (field.required) {
-        str = str.min(1, "Required");
-      }
-      if (field.schema.pattern) {
-        str = str.regex(new RegExp(field.schema.pattern), `Must match pattern: ${field.schema.pattern}`);
-      }
-      schema = str;
+  switch (kind.kind) {
+    case "boolean":
+      return z.boolean();
+
+    case "number": {
+      const str = z.string().regex(/^-?\d+(\.\d+)?$/, "Must be a number");
+      return required ? str.min(1, "Required") : z.union([z.literal(""), str]);
     }
 
-    shape[fieldKey(field.path)] = field.required ? schema : z.union([z.literal(""), schema]);
-  }
+    case "enum": {
+      const base = z.enum(kind.options as [string, ...string[]]);
+      return required ? base : z.union([z.literal(""), base]);
+    }
 
+    case "string": {
+      let str = z.string();
+      if (schema.minLength) str = str.min(schema.minLength, `Must be at least ${schema.minLength} characters`);
+      else if (required) str = str.min(1, "Required");
+      if (schema.pattern) str = str.regex(new RegExp(schema.pattern), `Must match pattern: ${schema.pattern}`);
+      return required ? str : z.union([z.literal(""), str]);
+    }
+
+    case "raw-json": {
+      const str = z.string().refine((v) => v === "" || tryParseJson(v).ok, "Must be valid JSON");
+      return required ? str.min(1, "Required") : str;
+    }
+
+    case "group-table":
+    case "nested-object": {
+      const strict = buildObjectZodSchema(kind.schema);
+      if (required) return strict;
+      // Optional whole-object: untouched (every leaf blank) passes without
+      // triggering this object's own internal required-field checks; a
+      // partially-filled optional object still enforces them normally.
+      return z.any().superRefine((value, ctx) => {
+        if (isDeepEmpty(value)) return;
+        const result = strict.safeParse(value);
+        if (!result.success) {
+          for (const issue of result.error.issues) {
+            ctx.addIssue({ code: "custom", message: issue.message, path: issue.path });
+          }
+        }
+      });
+    }
+
+    case "map-object":
+      return z.record(z.string(), buildFieldZodSchema(kind.valueSchema, true));
+
+    case "array-primitive":
+      return z.array(buildFieldZodSchema(kind.itemSchema, true));
+
+    case "array-object-table":
+      return z.array(buildObjectZodSchema(kind.itemSchema));
+  }
+}
+
+export function buildObjectZodSchema(schema: JsonSchemaProperty): z.ZodTypeAny {
+  const required = schema.required ?? [];
+  const shape: Record<string, z.ZodTypeAny> = {};
+  for (const [name, propSchema] of Object.entries(schema.properties ?? {})) {
+    shape[name] = buildFieldZodSchema(propSchema, required.includes(name));
+  }
   return z.object(shape);
+}
+
+/** Entry point — the resource's per-entry schema (name/location/tags/...). */
+export function buildZodSchema(entrySchema: JsonSchemaProperty) {
+  return buildObjectZodSchema(entrySchema);
 }
