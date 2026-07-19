@@ -11,15 +11,15 @@
         "dataClassification": "internal"
       }
     },
-    "een_ffyd": {
-      "name": "een",
+    "tsv_sz9b": {
+      "name": "tsv",
       "location": "WestEurope",
       "tags": {
         "environment": "dev",
-        "owner": "platform-team",
-        "costCenter": "CC-LEARN-001",
-        "application": "azure-learning",
-        "dataClassification": "internal"
+        "owner": "naveen",
+        "costCenter": "cost",
+        "application": "dev",
+        "dataClassification": "confidential"
       }
     }
   }
