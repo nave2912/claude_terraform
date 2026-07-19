@@ -1,0 +1,22 @@
+{
+  "virtual_networks": {
+    "primary": {
+      "name": "vnet-demo",
+      "resource_group_key": "primary",
+      "address_space": ["10.0.0.0/16"],
+      "subnets": {
+        "subnet1": {
+          "name": "subnet1",
+          "address_prefixes": ["10.0.1.0/24"]
+        }
+      },
+      "tags": {
+        "environment": "dev",
+        "owner": "platform-team",
+        "costCenter": "CC-LEARN-001",
+        "application": "azure-learning",
+        "dataClassification": "internal"
+      }
+    }
+  }
+}
