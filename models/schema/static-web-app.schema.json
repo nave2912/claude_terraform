@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://internal/schemas/static-web-app.schema.json",
+  "title": "Static Web App Model",
+  "description": "Schema for JSON-driven Azure Static Web App definitions consumed by environments/<env>/main.tf",
+  "type": "object",
+  "required": ["static_web_apps"],
+  "additionalProperties": false,
+  "properties": {
+    "static_web_apps": {
+      "type": "object",
+      "description": "Map keyed by a stable logical id. The key becomes the for_each key in Terraform.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["name", "resource_group_key", "location", "tags"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Static Web App name."
+          },
+          "resource_group_key": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Logical id of the resource group (key under resource_groups in resource-group.json) to deploy into."
+          },
+          "location": {
+            "type": "string",
+            "enum": ["eastus2", "centralus", "westus2", "westeurope", "eastasia"],
+            "description": "Azure Static Web Apps is only offered in a handful of regions — unlike other resource types here, this is NOT inherited from the resource group's location."
+          },
+          "sku_tier": {
+            "type": "string",
+            "enum": ["Free", "Standard"],
+            "default": "Free"
+          },
+          "sku_size": {
+            "type": "string",
+            "default": "Free",
+            "description": "Must match sku_tier."
+          },
+          "tags": {
+            "type": "object",
+            "required": [
+              "environment",
+              "owner",
+              "costCenter",
+              "application",
+              "dataClassification"
+            ],
+            "properties": {
+              "environment": { "type": "string", "enum": ["dev", "qa", "prod"] },
+              "owner": { "type": "string", "minLength": 1 },
+              "costCenter": { "type": "string", "minLength": 1 },
+              "application": { "type": "string", "minLength": 1 },
+              "dataClassification": {
+                "type": "string",
+                "enum": ["public", "internal", "confidential", "restricted"]
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

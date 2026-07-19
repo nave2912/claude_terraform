@@ -1,0 +1,17 @@
+{
+  "container_registries": {
+    "chatbot": {
+      "name": "chatbotacrnaveenkumar",
+      "resource_group_key": "primary",
+      "sku": "Basic",
+      "admin_enabled": false,
+      "tags": {
+        "environment": "dev",
+        "owner": "platform-team",
+        "costCenter": "CC-LEARN-001",
+        "application": "terraform-chatbot",
+        "dataClassification": "confidential"
+      }
+    }
+  }
+}

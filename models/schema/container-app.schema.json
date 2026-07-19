@@ -1,0 +1,132 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://internal/schemas/container-app.schema.json",
+  "title": "Container App Model",
+  "description": "Schema for JSON-driven Azure Container App definitions consumed by environments/<env>/main.tf. NOTE: Key-Vault-backed secrets (e.g. API keys) are NOT configurable through this model — secret material can't live in a committed JSON file, so any secret env vars a container app needs are wired by hand in environments/dev/main.tf, matched by this model's logical key. env here only covers plain, non-secret values.",
+  "type": "object",
+  "required": ["container_apps"],
+  "additionalProperties": false,
+  "properties": {
+    "container_apps": {
+      "type": "object",
+      "description": "Map keyed by a stable logical id. The key becomes the for_each key in Terraform.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "name",
+          "resource_group_key",
+          "container_app_environment_key",
+          "container_registry_key",
+          "container_name",
+          "image_name",
+          "target_port",
+          "tags"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Container App name."
+          },
+          "resource_group_key": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Logical id of the resource group (key under resource_groups in resource-group.json) to deploy into."
+          },
+          "container_app_environment_key": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Logical id of the environment (key under container_app_environments in container-app-environment.json) this app runs in."
+          },
+          "container_registry_key": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Logical id of the registry (key under container_registries in container-registry.json) to pull the image from."
+          },
+          "container_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Name of the container in the app's template."
+          },
+          "image_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Image repository name within the registry, e.g. \"chatbot-backend\" for <registry-login-server>/chatbot-backend:<image_tag>."
+          },
+          "image_tag": {
+            "type": "string",
+            "default": "latest",
+            "description": "Update via CI after pushing a new image; Terraform does not build or push images itself."
+          },
+          "cpu": {
+            "type": "number",
+            "default": 0.25,
+            "description": "vCPU allocation. 0.25 is the smallest allowed Consumption-plan size."
+          },
+          "memory": {
+            "type": "string",
+            "default": "0.5Gi",
+            "description": "Must pair with cpu per Azure's allowed combinations."
+          },
+          "target_port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535,
+            "description": "Port the container listens on."
+          },
+          "min_replicas": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "0 scales to zero when idle."
+          },
+          "max_replicas": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "external_enabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "env": {
+            "type": "array",
+            "description": "Plain (non-secret) environment variables only.",
+            "items": {
+              "type": "object",
+              "required": ["name", "value"],
+              "additionalProperties": false,
+              "properties": {
+                "name": { "type": "string", "minLength": 1 },
+                "value": { "type": "string" }
+              }
+            }
+          },
+          "tags": {
+            "type": "object",
+            "required": [
+              "environment",
+              "owner",
+              "costCenter",
+              "application",
+              "dataClassification"
+            ],
+            "properties": {
+              "environment": { "type": "string", "enum": ["dev", "qa", "prod"] },
+              "owner": { "type": "string", "minLength": 1 },
+              "costCenter": { "type": "string", "minLength": 1 },
+              "application": { "type": "string", "minLength": 1 },
+              "dataClassification": {
+                "type": "string",
+                "enum": ["public", "internal", "confidential", "restricted"]
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

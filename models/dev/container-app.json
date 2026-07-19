@@ -1,0 +1,30 @@
+{
+  "container_apps": {
+    "backend": {
+      "name": "chatbot-backend",
+      "resource_group_key": "primary",
+      "container_app_environment_key": "chatbot",
+      "container_registry_key": "chatbot",
+      "container_name": "chatbot-backend",
+      "image_name": "chatbot-backend",
+      "image_tag": "latest",
+      "cpu": 0.25,
+      "memory": "0.5Gi",
+      "target_port": 3000,
+      "min_replicas": 0,
+      "max_replicas": 1,
+      "external_enabled": true,
+      "env": [
+        { "name": "GITHUB_REPO", "value": "nave2912/claude_terraform" },
+        { "name": "PORT", "value": "3000" }
+      ],
+      "tags": {
+        "environment": "dev",
+        "owner": "platform-team",
+        "costCenter": "CC-LEARN-001",
+        "application": "terraform-chatbot",
+        "dataClassification": "confidential"
+      }
+    }
+  }
+}
