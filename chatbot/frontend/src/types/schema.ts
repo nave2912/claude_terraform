@@ -102,5 +102,8 @@ export interface PrCheck {
 export interface PrStatusResponse {
   overall: "success" | "failure" | "pending" | "none";
   checks: PrCheck[];
+  planSummary?: string | null;
   error?: string;
 }
+
+export type CommitStatusResponse = Omit<PrStatusResponse, "planSummary">;

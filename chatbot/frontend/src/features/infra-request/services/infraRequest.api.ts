@@ -1,4 +1,5 @@
 import type {
+  CommitStatusResponse,
   MergeOutcome,
   ModelEntriesResponse,
   PreviewOutcome,
@@ -55,4 +56,7 @@ export const infraRequestApi = {
 
   getPrStatus: (prNumber: number) =>
     requestJson<PrStatusResponse>(`/api/backend/pr-status?prNumber=${prNumber}`),
+
+  getCommitStatus: (sha: string) =>
+    requestJson<CommitStatusResponse>(`/api/backend/commit-status?sha=${encodeURIComponent(sha)}`),
 };
