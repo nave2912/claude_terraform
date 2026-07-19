@@ -8,6 +8,12 @@ import { fieldKey } from "./schemaFields";
  * /preview-structured. This is a client-side convenience layer only — the
  * backend re-validates with ajv against the real schema regardless, so a
  * gap here is a UX annoyance, not a safety hole.
+ *
+ * Every field is a controlled string input, so "not filled in" is "" —
+ * never undefined. Required fields reject "". Optional fields accept ""
+ * (union with z.literal("")) but still enforce pattern/enum/minLength the
+ * moment a non-empty value is typed — "optional" means "not mandatory",
+ * not "unvalidated".
  */
 export function buildZodSchema(fields: FlatField[]) {
   const shape: Record<string, z.ZodTypeAny> = {};
@@ -20,7 +26,7 @@ export function buildZodSchema(fields: FlatField[]) {
       let str = z.string();
       if (field.schema.minLength) {
         str = str.min(field.schema.minLength, `Must be at least ${field.schema.minLength} characters`);
-      } else {
+      } else if (field.required) {
         str = str.min(1, "Required");
       }
       if (field.schema.pattern) {
@@ -28,7 +34,8 @@ export function buildZodSchema(fields: FlatField[]) {
       }
       schema = str;
     }
-    shape[fieldKey(field.path)] = schema;
+
+    shape[fieldKey(field.path)] = field.required ? schema : z.union([z.literal(""), schema]);
   }
 
   return z.object(shape);
