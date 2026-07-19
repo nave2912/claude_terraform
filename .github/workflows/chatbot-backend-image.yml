@@ -1,0 +1,59 @@
+name: chatbot-backend-image
+
+# Builds the chatbot backend's Docker image and pushes it to the chatbot's
+# own ACR (chatbotacrnaveenkumar, provisioned by
+# environments/dev/main.tf's container_registry module). Publishing here
+# means "pushed to ACR" — it does not update the running Container App;
+# that's a separate step (bump container_image_tag / az containerapp
+# update), same as the frontend image.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "chatbot/backend/**"
+      - ".github/workflows/chatbot-backend-image.yml"
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write # required for OIDC federated login to Azure
+  contents: read
+
+env:
+  ACR_NAME: chatbotacrnaveenkumar
+  IMAGE_NAME: chatbot-backend
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_BACKEND_SUBSCRIPTION_ID }}
+          ARM_USE_OIDC: true
+
+      # admin_enabled = false on this registry by design (see
+      # modules/container_registry) — this authenticates via the logged-in
+      # identity's AAD token instead of an admin username/password. That
+      # identity needs the "AcrPush" role on chatbotacrnaveenkumar — same
+      # manual grant the frontend image workflow needs, not provisioned by
+      # Terraform itself.
+      - name: az acr login
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Build and push image
+        run: |
+          IMAGE="$ACR_NAME.azurecr.io/$IMAGE_NAME"
+          docker build \
+            -f chatbot/backend/Dockerfile \
+            -t "$IMAGE:latest" \
+            -t "$IMAGE:${{ github.sha }}" \
+            .
+          docker push "$IMAGE:latest"
+          docker push "$IMAGE:${{ github.sha }}"
