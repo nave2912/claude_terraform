@@ -52,6 +52,9 @@ skip-check:
   - CKV_AZURE_166 # image quarantine/scan
   - CKV_AZURE_233 # zone redundancy
   - CKV_AZURE_167 # untagged manifest retention policy
+  # Geo-replication is also Premium-tier-only — this is a single-region
+  # dev/platform-tooling registry, not a multi-region deployment.
+  - CKV_AZURE_165
   # Disabling public network access requires a Private Endpoint, which
   # requires Premium SKU + VNET integration — neither exists in this
   # framework yet (no VNET wiring for platform-tooling resources). The
@@ -66,10 +69,15 @@ skip-check:
   # vaults. Not appropriate for a vault holding long-lived production
   # secrets; callers can set purge_protection_enabled = true per-instance.
   - CKV_AZURE_110
+  # network_acls IS explicitly configured (bypass = "AzureServices"), but
+  # this check specifically requires default_action = "Deny" to pass.
+  # Deny would block `terraform apply` itself — GitHub-hosted Actions
+  # runners have dynamic public IPs not covered by the AzureServices
+  # bypass, and there's no self-hosted-runner/VNET setup to exempt CI from
+  # the firewall. Same underlying gap as CKV_AZURE_189/CKV2_AZURE_32 below.
+  - CKV_AZURE_109
   # Disabling public network access needs a Private Endpoint (same Premium +
-  # VNET gap as the registry above). network_acls IS explicitly configured
-  # (default_action = "Allow", bypass = "AzureServices") — see
-  # CKV_AZURE_109, which is NOT skipped and does pass.
+  # VNET gap as the registry above).
   - CKV_AZURE_189
   - CKV2_AZURE_32
 

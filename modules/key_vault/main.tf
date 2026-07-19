@@ -13,10 +13,11 @@ resource "azurerm_key_vault" "this" {
   public_network_access_enabled = true
 
   # Explicit firewall config (vs. leaving it unset) — still allows all
-  # traffic by default since there's no VNET/Private Link in this framework
-  # yet (see CKV_AZURE_189/CKV2_AZURE_32 in .checkov.yaml's skip-check
-  # list), but "AzureServices" bypass plus an explicit default_action is a
-  # real, zero-cost improvement over leaving network_acls unconfigured.
+  # traffic by default since there's no VNET/Private Link/self-hosted CI
+  # runner in this framework yet, so a Deny default would block
+  # `terraform apply` itself (GitHub-hosted Actions runners have dynamic
+  # public IPs, not covered by the AzureServices bypass). See
+  # CKV_AZURE_109/189/CKV2_AZURE_32 in .checkov.yaml's skip-check list.
   network_acls {
     default_action = "Allow"
     bypass         = "AzureServices"
