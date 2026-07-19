@@ -24,9 +24,11 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import { previewIntent } from "../pipeline/previewIntent.js";
 import { proposeInfrastructureChange } from "../pipeline/proposeInfrastructureChange.js";
+import fs from "node:fs";
 import { proposeStructuredChange } from "../pipeline/proposeStructuredChange.js";
-import { validateEntry, listResourceTypes } from "../validators/index.js";
+import { validateEntry, listResourceTypes, getResourceType } from "../validators/index.js";
 import { mergeEntry } from "../modelwriter/index.js";
+import { modelFilePath } from "../config/paths.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const API_KEY = process.env.API_KEY;
@@ -88,6 +90,34 @@ app.get("/schema-info", requireApiKey, (_req, res) => {
       schema: r.schema,
     })),
   });
+});
+
+/**
+ * Read-only lookup used to resolve foreign-key-style fields (e.g.
+ * storage-account's `resource_group_key`, which must name an existing key
+ * under models/<env>/resource-group.json). Returns the existing entries for
+ * one resourceType+environment so the frontend can offer a real dropdown
+ * instead of a free-text guess. No LLM, no writes — structured read only.
+ */
+app.get("/model-entries", requireApiKey, (req: Request, res: Response) => {
+  const resourceType = String(req.query.resourceType ?? "");
+  const environment = String(req.query.environment ?? "");
+  if (!resourceType || !environment) {
+    res.status(400).json({ error: "query params required: resourceType, environment" });
+    return;
+  }
+  try {
+    const { containerKey } = getResourceType(resourceType);
+    const filePath = modelFilePath(environment, resourceType);
+    if (!fs.existsSync(filePath)) {
+      res.json({ entries: {} });
+      return;
+    }
+    const parsed = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    res.json({ entries: parsed[containerKey] ?? {} });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
 /**
@@ -198,6 +228,7 @@ app.listen(PORT, () => {
   console.log(`chatbot backend listening on http://localhost:${PORT}`);
   console.log(`  GET  /health            - no auth`);
   console.log(`  GET  /schema-info       - fixed-schema form data, requires x-api-key`);
+  console.log(`  GET  /model-entries     - existing entries for a resourceType+environment, requires x-api-key`);
   console.log(`  POST /chat              - free-text preview (LLM), requires x-api-key`);
   console.log(`  POST /propose           - free-text full pipeline (LLM), requires x-api-key`);
   console.log(`  POST /preview-structured - fixed-schema preview, requires x-api-key`);

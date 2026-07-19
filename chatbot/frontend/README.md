@@ -1,44 +1,36 @@
-# Chatbot Frontend
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-A minimal static chat widget — no build step, no framework. It never accepts
-free-text natural language: every question it asks is generated from
-`GET /schema-info` (which mirrors `models/schema/*.schema.json`), so a user
-can only submit values the schema already allows. This is deliberately
-separate from `POST /chat` / `POST /propose` (the free-text, LLM-parsed
-path) — this UI only talks to `/schema-info`, `/preview-structured`, and
-`/propose-structured`.
+## Getting Started
 
-## Run locally
+First, run the development server:
 
-1. Start the backend first (see `../backend/README.md`), e.g.:
-   ```
-   set API_KEY=chatbot-dev-key
-   npm run serve --prefix ../backend
-   ```
-2. Open `index.html` directly in a browser (double-click it, or
-   `start index.html` on Windows) — no server needed for the frontend
-   itself, it's plain HTML/CSS/JS making `fetch()` calls.
-3. In the "API base URL" / "API key" bar, confirm the URL matches where the
-   backend is listening (default `http://localhost:3000`) and enter the same
-   `API_KEY` value the backend was started with, then click **Connect**.
-4. Answer the bot's questions (resource type → environment → key → each
-   required schema field). At the end it previews the exact JSON that would
-   be written, then **Open pull request** runs the same
-   branch → commit → push → PR pipeline as `npm run propose`.
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
 
-## Why fixed-schema instead of free text
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-The CLI/API's `/chat` and `/propose` routes accept natural language and use
-Claude to parse it into structured fields — flexible, but the shape of what
-a user can ask for is only as constrained as the system prompt. This UI
-takes the opposite tradeoff: it only ever offers inputs the JSON Schema
-already defines (dropdowns for `enum` fields, text inputs with pattern
-hints for the rest), so there's no LLM call and no ambiguity to resolve.
-Both paths end up going through the same PR review + CI/CD gate before
-anything reaches Azure.
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-## Adding a new resource type
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-Nothing in `app.js` mentions "resource group" — it walks whatever
-`GET /schema-info` returns. Add a new `models/schema/<type>.schema.json` +
-module on the backend and this form picks it up automatically.
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
