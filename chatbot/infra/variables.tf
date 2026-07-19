@@ -1,12 +1,6 @@
-variable "location" {
-  description = "Azure region for the resource group, Key Vault, ACR, and Container Apps environment."
-  type        = string
-  default     = "eastus"
-}
-
-# Azure Static Web Apps is only offered in a handful of regions — "eastus"
-# is not one of them, so this is deliberately separate from `location`
-# rather than a mistake.
+# Azure Static Web Apps is only offered in a handful of regions — the
+# existing resource group's region ("eastus", see models/dev/resource-group.json)
+# is not one of them, so this is deliberately separate rather than a mistake.
 variable "static_web_app_location" {
   description = "Azure region for the Static Web App. Must be one of the regions SWA is actually offered in (eastus2, centralus, westus2, westeurope, eastasia)."
   type        = string
@@ -19,9 +13,9 @@ variable "static_web_app_location" {
 }
 
 variable "resource_group_name" {
-  description = "Name of the resource group holding the chatbot's own hosting infra. Deliberately separate from any AzureLearning workload resource group modeled via models/<env>/resource-group.json."
+  description = "Name of the EXISTING resource group to deploy the chatbot's hosting infra into. Not created by this file — read via a data source so it stays owned by environments/dev's own Terraform state (models/dev/resource-group.json, key \"primary\")."
   type        = string
-  default     = "chatbot-platform-rg"
+  default     = "azure-learning-dev"
 }
 
 variable "static_web_app_name" {

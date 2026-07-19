@@ -8,17 +8,33 @@ generated per-request.
 
 ## What this provisions
 
-| Resource | Choice | Why |
-|---|---|---|
-| Resource group | `chatbot-platform-rg` | Kept separate from any workload RG |
-| Key Vault | Standard SKU, RBAC auth | Holds `anthropic-api-key` and `github-token` |
-| Container Registry | Basic SKU, no admin user | Cheapest tier; pull is via managed identity |
-| Container Apps environment | Consumption only, no VNET | No idle cost beyond Log Analytics ingestion |
-| Container App (backend) | `min_replicas = 0`, 0.25 vCPU / 0.5Gi | Scales to zero — $0 while idle, few-second cold start |
-| Static Web App (frontend) | Free tier | $0 hosting for the Next.js app |
+Deploys into the **existing** `azure-learning-dev` resource group (the
+`primary` entry in `models/dev/resource-group.json`, owned by
+`environments/dev`'s own Terraform state) — referenced here via a `data
+"azurerm_resource_group"` block, never created or owned by this state file.
 
-See `../../ARCHITECTURE.md`-style reasoning in the top comment of `main.tf`
-for the full cost-effectiveness rationale.
+| Resource | Module | Choice | Why |
+|---|---|---|---|
+| Key Vault | `modules/key_vault` | Standard SKU, RBAC auth | Holds `anthropic-api-key` and `github-token` |
+| Container Registry | `modules/container_registry` | Basic SKU, no admin user | Cheapest tier; pull is via managed identity |
+| Log Analytics workspace | `modules/log_analytics_workspace` | PerGB2018, 30-day retention | Platform minimum, required by Container Apps |
+| Container Apps environment | `modules/container_app_environment` | Consumption only, no VNET | No idle cost beyond Log Analytics ingestion |
+| Container App (backend) | `modules/container_app` | `min_replicas = 0`, 0.25 vCPU / 0.5Gi | Scales to zero — $0 while idle, few-second cold start |
+| Static Web App (frontend) | `modules/static_web_app` | Free tier | $0 hosting for the Next.js app |
+
+Each of these lives as a standalone module under `modules/` — the same
+pattern as `modules/resource_group`, `modules/storage_account`, and
+`modules/virtual_network` used elsewhere in this repo — not inlined into
+`chatbot/infra/main.tf`. That's deliberate: they're generic building
+blocks (any future workload can reuse `modules/container_app`, not just
+this chatbot), and it's what makes them the natural next candidates for
+their own `models/schema/*.schema.json` + `environments/dev` wiring if any
+of these ever need to be creatable through the chatbot's own UI, the same
+way `resource-group`/`storage-account`/`virtual-network` are today.
+`chatbot/infra/main.tf` itself stays a thin composition root wiring those
+modules together plus the chatbot-specific glue (secrets, role
+assignments, the generated backend API key) that doesn't belong in a
+reusable module.
 
 ## Prerequisites
 
