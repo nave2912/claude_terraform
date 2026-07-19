@@ -11,9 +11,9 @@
         "dataClassification": "internal"
       }
     },
-    "een_ffyd": {
-      "name": "een",
-      "location": "WestEurope",
+    "divergence_fix_test": {
+      "name": "azure-learning-divergencefixtest",
+      "location": "eastus",
       "tags": {
         "environment": "dev",
         "owner": "platform-team",
