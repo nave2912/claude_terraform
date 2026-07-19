@@ -14,6 +14,17 @@
         "developer": "naveenkumar",
         "purpose": "website"
       }
+    },
+    "test_storage_ui": {
+      "name": "azlearningteststorage",
+      "resource_group_key": "primary",
+      "tags": {
+        "environment": "dev",
+        "owner": "platform-team",
+        "costCenter": "CC-LEARN-001",
+        "application": "azure-learning",
+        "dataClassification": "internal"
+      }
     }
   }
 }
