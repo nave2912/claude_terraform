@@ -177,6 +177,24 @@ resource "azurerm_role_assignment" "container_app_kv_secrets_user" {
   principal_id         = azurerm_user_assigned_identity.container_app[each.key].principal_id
 }
 
+# Azure RBAC role assignments are eventually consistent — a brand-new
+# managed identity plus a brand-new role assignment together can take
+# several minutes to replicate, even though the azurerm_role_assignment
+# resource itself reports "complete" as soon as the write is accepted.
+# Without this, the Container App's first revision can fail with "Unable
+# to get value using Managed identity ... for secret X" even though the
+# role assignment is genuinely correct — observed directly in CI (RBAC
+# confirmed correct on inspection, ~9 minutes after assignment, after the
+# container app had already failed once).
+resource "time_sleep" "wait_for_container_app_rbac" {
+  create_duration = "90s"
+
+  depends_on = [
+    azurerm_role_assignment.container_app_acr_pull,
+    azurerm_role_assignment.container_app_kv_secrets_user,
+  ]
+}
+
 resource "random_password" "chatbot_backend_api_key" {
   length  = 32
   special = false
@@ -235,8 +253,7 @@ module "container_app" {
   tags = each.value.tags
 
   depends_on = [
-    azurerm_role_assignment.container_app_acr_pull,
-    azurerm_role_assignment.container_app_kv_secrets_user,
+    time_sleep.wait_for_container_app_rbac,
   ]
 }
 
