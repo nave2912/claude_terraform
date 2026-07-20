@@ -95,10 +95,11 @@ app.get("/schema-info", requireApiKey, (_req, res) => {
 
 /**
  * Read-only lookup used to resolve foreign-key-style fields (e.g.
- * storage-account's `resource_group_key`, which must name an existing key
- * under models/<env>/resource-group.json). Returns the existing entries for
- * one resourceType+environment so the frontend can offer a real dropdown
- * instead of a free-text guess. No LLM, no writes — structured read only.
+ * storage-account's `resource_group_name`, which must match the real
+ * Azure `name` of an entry in models/<env>/resource-group.json). Returns
+ * the existing entries for one resourceType+environment so the frontend
+ * can offer a real dropdown instead of a free-text guess. No LLM, no
+ * writes — structured read only.
  */
 app.get("/model-entries", requireApiKey, (req: Request, res: Response) => {
   const resourceType = String(req.query.resourceType ?? "");

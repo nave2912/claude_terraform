@@ -13,7 +13,7 @@
       "minProperties": 1,
       "additionalProperties": {
         "type": "object",
-        "required": ["name", "resource_group_key", "location", "tags"],
+        "required": ["name", "resource_group_name", "location", "tags"],
         "additionalProperties": false,
         "properties": {
           "name": {
@@ -21,10 +21,10 @@
             "minLength": 1,
             "description": "Static Web App name."
           },
-          "resource_group_key": {
+          "resource_group_name": {
             "type": "string",
             "minLength": 1,
-            "description": "Logical id of the resource group (key under resource_groups in resource-group.json) to deploy into."
+            "description": "Name of the resource group (must match the \"name\" of an entry in resource-group.json) to deploy into."
           },
           "location": {
             "type": "string",

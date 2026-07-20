@@ -2,7 +2,7 @@
   "container_app_environments": {
     "chatbot": {
       "name": "chatbot-backend-env",
-      "resource_group_key": "primary",
+      "resource_group_name": "azure-learning-dev",
       "log_analytics_workspace_key": "chatbot",
       "tags": {
         "environment": "dev",

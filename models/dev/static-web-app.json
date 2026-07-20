@@ -2,7 +2,7 @@
   "static_web_apps": {
     "chatbot": {
       "name": "naveenkumar",
-      "resource_group_key": "primary",
+      "resource_group_name": "azure-learning-dev",
       "location": "eastus2",
       "sku_tier": "Free",
       "sku_size": "Free",

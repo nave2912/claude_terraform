@@ -2,7 +2,7 @@
   "log_analytics_workspaces": {
     "chatbot": {
       "name": "chatbot-backend-logs",
-      "resource_group_key": "primary",
+      "resource_group_name": "azure-learning-dev",
       "sku": "PerGB2018",
       "retention_in_days": 30,
       "tags": {
