@@ -35,6 +35,13 @@ variable "sku_size" {
   default     = "Free"
 }
 
+variable "app_settings" {
+  description = "Application settings (environment variables) exposed to the Static Web App's server-side runtime (Next.js Route Handlers / managed Functions). Not the same as build-time env vars — these are read at request time. Sensitive because backend API keys typically go here."
+  type        = map(string)
+  default     = {}
+  sensitive   = true
+}
+
 variable "tags" {
   description = "Mandatory tag set. Must include environment, owner, costCenter, application, dataClassification."
   type        = map(string)

@@ -38,6 +38,12 @@ variable "chatbot_github_token" {
   sensitive   = true
 }
 
+variable "chatbot_backend_api_key" {
+  description = "The x-api-key the chatbot backend requires on every authenticated request, and the frontend must send back. A fixed, caller-supplied value (not Terraform-generated) so it can be set once and rotated deliberately. Supply via TF_VAR_chatbot_backend_api_key — never hardcode."
+  type        = string
+  sensitive   = true
+}
+
 # A fixed date, not timestamp() — timestamp() re-evaluates on every plan and
 # would perpetually show these two secrets as changed. Bump this (and
 # rotate the actual secret values) roughly annually.

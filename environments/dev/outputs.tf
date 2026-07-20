@@ -49,7 +49,7 @@ output "chatbot_static_web_app_api_key" {
 }
 
 output "chatbot_backend_api_key" {
-  description = "The generated x-api-key the frontend BFF must send as the x-api-key header when calling the backend Container App. Sensitive."
-  value       = random_password.chatbot_backend_api_key.result
+  description = "The x-api-key the frontend BFF must send as the x-api-key header when calling the backend Container App. Sensitive."
+  value       = var.chatbot_backend_api_key
   sensitive   = true
 }
