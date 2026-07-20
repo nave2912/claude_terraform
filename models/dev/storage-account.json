@@ -2,7 +2,7 @@
   "storage_accounts": {
     "gen2": {
       "name": "stlearningdevgen2",
-      "resource_group_key": "primary",
+      "resource_group_name": "azure-learning-dev",
       "account_tier": "Standard",
       "account_replication_type": "LRS",
       "tags": {

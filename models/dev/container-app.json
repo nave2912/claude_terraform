@@ -2,7 +2,7 @@
   "container_apps": {
     "backend": {
       "name": "chatbot-backend",
-      "resource_group_key": "primary",
+      "resource_group_name": "azure-learning-dev",
       "container_app_environment_key": "chatbot",
       "container_registry_key": "chatbot",
       "container_name": "chatbot-backend",

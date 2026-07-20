@@ -15,6 +15,12 @@ locals {
   container_app_environment_model = jsondecode(file("${path.module}/../../models/${var.environment}/container-app-environment.json"))
   container_app_model             = jsondecode(file("${path.module}/../../models/${var.environment}/container-app.json"))
   static_web_app_model            = jsondecode(file("${path.module}/../../models/${var.environment}/static-web-app.json"))
+
+  # Other models reference a resource group by its real Azure name
+  # (resource_group_name), not by resource-group.json's logical key -- this
+  # translates name back to key so module.resource_group[...] lookups
+  # (which are for_each-keyed by logical id) still work unchanged.
+  resource_group_name_to_key = { for k, rg in local.resource_group_model.resource_groups : rg.name => k }
 }
 
 module "resource_group" {
@@ -34,8 +40,8 @@ module "storage_account" {
   for_each = local.storage_account_model.storage_accounts
 
   name                     = each.value.name
-  location                 = module.resource_group[each.value.resource_group_key].location
-  resource_group_name      = module.resource_group[each.value.resource_group_key].name
+  location                 = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].location
+  resource_group_name      = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].name
   account_tier             = each.value.account_tier
   account_replication_type = each.value.account_replication_type
   tags                     = each.value.tags
@@ -47,8 +53,8 @@ module "virtual_network" {
   for_each = local.virtual_network_model.virtual_networks
 
   name                = each.value.name
-  location            = module.resource_group[each.value.resource_group_key].location
-  resource_group_name = module.resource_group[each.value.resource_group_key].name
+  location            = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].location
+  resource_group_name = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].name
   address_space       = each.value.address_space
   subnets             = try(each.value.subnets, {})
   tags                = each.value.tags
@@ -68,8 +74,8 @@ module "key_vault" {
   for_each = local.key_vault_model.key_vaults
 
   name                       = each.value.name
-  location                   = module.resource_group[each.value.resource_group_key].location
-  resource_group_name        = module.resource_group[each.value.resource_group_key].name
+  location                   = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].location
+  resource_group_name        = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].name
   sku_name                   = try(each.value.sku_name, "standard")
   purge_protection_enabled   = try(each.value.purge_protection_enabled, false)
   soft_delete_retention_days = try(each.value.soft_delete_retention_days, 7)
@@ -139,8 +145,8 @@ module "container_registry" {
   for_each = local.container_registry_model.container_registries
 
   name                = each.value.name
-  location            = module.resource_group[each.value.resource_group_key].location
-  resource_group_name = module.resource_group[each.value.resource_group_key].name
+  location            = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].location
+  resource_group_name = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].name
   sku                 = try(each.value.sku, "Basic")
   admin_enabled       = try(each.value.admin_enabled, false)
   tags                = each.value.tags
@@ -152,8 +158,8 @@ module "log_analytics_workspace" {
   for_each = local.log_analytics_workspace_model.log_analytics_workspaces
 
   name                = each.value.name
-  location            = module.resource_group[each.value.resource_group_key].location
-  resource_group_name = module.resource_group[each.value.resource_group_key].name
+  location            = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].location
+  resource_group_name = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].name
   sku                 = try(each.value.sku, "PerGB2018")
   retention_in_days   = try(each.value.retention_in_days, 30)
   tags                = each.value.tags
@@ -165,8 +171,8 @@ module "container_app_environment" {
   for_each = local.container_app_environment_model.container_app_environments
 
   name                       = each.value.name
-  location                   = module.resource_group[each.value.resource_group_key].location
-  resource_group_name        = module.resource_group[each.value.resource_group_key].name
+  location                   = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].location
+  resource_group_name        = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].name
   log_analytics_workspace_id = module.log_analytics_workspace[each.value.log_analytics_workspace_key].id
   tags                       = each.value.tags
 }
@@ -178,8 +184,8 @@ resource "azurerm_user_assigned_identity" "container_app" {
   for_each = local.container_app_model.container_apps
 
   name                = "${each.value.name}-identity"
-  location            = module.resource_group[each.value.resource_group_key].location
-  resource_group_name = module.resource_group[each.value.resource_group_key].name
+  location            = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].location
+  resource_group_name = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].name
   tags                = each.value.tags
 }
 
@@ -227,7 +233,7 @@ module "container_app" {
   for_each = local.container_app_model.container_apps
 
   name                         = each.value.name
-  resource_group_name          = module.resource_group[each.value.resource_group_key].name
+  resource_group_name          = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].name
   container_app_environment_id = module.container_app_environment[each.value.container_app_environment_key].id
   user_assigned_identity_ids   = [azurerm_user_assigned_identity.container_app[each.key].id]
 
@@ -294,7 +300,7 @@ module "static_web_app" {
 
   name                = each.value.name
   location            = each.value.location
-  resource_group_name = module.resource_group[each.value.resource_group_key].name
+  resource_group_name = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].name
   sku_tier            = try(each.value.sku_tier, "Free")
   sku_size            = try(each.value.sku_size, "Free")
   tags                = each.value.tags

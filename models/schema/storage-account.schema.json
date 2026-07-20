@@ -13,7 +13,7 @@
       "minProperties": 1,
       "additionalProperties": {
         "type": "object",
-        "required": ["name", "resource_group_key", "tags"],
+        "required": ["name", "resource_group_name", "tags"],
         "additionalProperties": false,
         "properties": {
           "name": {
@@ -21,10 +21,10 @@
             "pattern": "^[a-z0-9]{3,24}$",
             "description": "Globally unique storage account name: lowercase letters/numbers only, 3-24 chars."
           },
-          "resource_group_key": {
+          "resource_group_name": {
             "type": "string",
             "minLength": 1,
-            "description": "Logical id of the resource group (key under resource_groups in resource-group.json) to deploy into. Location is inherited from that resource group."
+            "description": "Name of the resource group (must match the \"name\" of an entry in resource-group.json) to deploy into. Location is inherited from that resource group."
           },
           "account_tier": {
             "type": "string",

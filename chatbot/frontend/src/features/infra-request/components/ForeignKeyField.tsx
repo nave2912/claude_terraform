@@ -15,16 +15,25 @@ interface Props {
 }
 
 /**
- * Resolves a foreign-key field (e.g. storage-account's resource_group_key)
+ * Resolves a foreign-key field (e.g. storage-account's resource_group_name)
  * against real data via GET /model-entries, rather than letting the user
- * free-type a key that may not exist. Isolated as its own component
+ * free-type a name that may not exist. Isolated as its own component
  * because the useModelEntries hook can only be called unconditionally at
  * a component's top level, and this field only exists when the schema
  * says so (see detectForeignKeyRef).
+ *
+ * Options are each entry's real `.name` (e.g. "azure-learning-dev"), not
+ * its logical map key (e.g. "primary") — the submitted value must match
+ * what's actually in Azure, since Terraform now resolves the target by
+ * name, not by resource-group.json's internal id.
  */
 export function ForeignKeyField({ name, displayName, refResourceType, environment, control, errors }: Props) {
   const { data, isLoading } = useModelEntries(refResourceType, environment);
-  const options = data ? Object.keys(data.entries) : [];
+  const options = data
+    ? Object.values(data.entries)
+        .map((entry) => (entry as { name?: string }).name)
+        .filter((n): n is string => Boolean(n))
+    : [];
 
   if (!isLoading && options.length === 0) {
     return (

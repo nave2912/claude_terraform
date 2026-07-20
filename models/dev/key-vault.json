@@ -2,7 +2,7 @@
   "key_vaults": {
     "chatbot": {
       "name": "kv-chatbot-naveenk",
-      "resource_group_key": "primary",
+      "resource_group_name": "azure-learning-dev",
       "sku_name": "standard",
       "purge_protection_enabled": false,
       "soft_delete_retention_days": 7,

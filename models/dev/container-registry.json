@@ -2,7 +2,7 @@
   "container_registries": {
     "chatbot": {
       "name": "chatbotacrnaveenkumar",
-      "resource_group_key": "primary",
+      "resource_group_name": "azure-learning-dev",
       "sku": "Basic",
       "admin_enabled": false,
       "tags": {
