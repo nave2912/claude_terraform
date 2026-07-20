@@ -5,7 +5,7 @@
       "location": "eastus",
       "tags": {
         "environment": "dev",
-        "owner": "platform-team",
+        "owner": "platform-team1",
         "costCenter": "CC-LEARN-001",
         "application": "azure-learning",
         "dataClassification": "internal"
