@@ -14,6 +14,19 @@
         "developer": "naveenkumar",
         "purpose": "website"
       }
+    },
+    "stghrt2345nk_f2fz": {
+      "name": "stghrt2345nk",
+      "resource_group_key": "test123456nk12_ez6g",
+      "account_tier": "Standard",
+      "account_replication_type": "LRS",
+      "tags": {
+        "environment": "dev",
+        "owner": "ddff",
+        "costCenter": "gggg",
+        "application": "gggg",
+        "dataClassification": "public"
+      }
     }
   }
 }
