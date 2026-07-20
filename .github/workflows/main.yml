@@ -134,7 +134,8 @@ jobs:
             -var-file=terraform.tfvars \
             -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
             -var="chatbot_anthropic_api_key=${{ secrets.CHATBOT_ANTHROPIC_API_KEY }}" \
-            -var="chatbot_github_token=${{ secrets.CHATBOT_GITHUB_TOKEN }}"
+            -var="chatbot_github_token=${{ secrets.CHATBOT_GITHUB_TOKEN }}" \
+            -var="chatbot_backend_api_key=${{ secrets.CHATBOT_BACKEND_API_KEY }}"
 
   apply:
     needs: validate
@@ -184,7 +185,8 @@ jobs:
             -var-file=terraform.tfvars \
             -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
             -var="chatbot_anthropic_api_key=${{ secrets.CHATBOT_ANTHROPIC_API_KEY }}" \
-            -var="chatbot_github_token=${{ secrets.CHATBOT_GITHUB_TOKEN }}"
+            -var="chatbot_github_token=${{ secrets.CHATBOT_GITHUB_TOKEN }}" \
+            -var="chatbot_backend_api_key=${{ secrets.CHATBOT_BACKEND_API_KEY }}"
 
       - name: terraform apply
         env:
@@ -198,4 +200,5 @@ jobs:
             -var-file=terraform.tfvars \
             -var="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
             -var="chatbot_anthropic_api_key=${{ secrets.CHATBOT_ANTHROPIC_API_KEY }}" \
-            -var="chatbot_github_token=${{ secrets.CHATBOT_GITHUB_TOKEN }}"
+            -var="chatbot_github_token=${{ secrets.CHATBOT_GITHUB_TOKEN }}" \
+            -var="chatbot_backend_api_key=${{ secrets.CHATBOT_BACKEND_API_KEY }}"

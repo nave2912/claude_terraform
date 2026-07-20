@@ -106,6 +106,16 @@ resource "azurerm_key_vault_secret" "chatbot_anthropic_api_key" {
   }
 }
 
+# The resource above only ever reads back the version *it* created -- an
+# out-of-band rotation (az keyvault secret set / Portal) creates a new
+# version the resource's own Read never notices. This data source has no
+# such pinning: it looks up "name" fresh on every plan/apply and always
+# resolves to whatever is currently the latest version in the vault.
+data "azurerm_key_vault_secret" "chatbot_anthropic_api_key_current" {
+  name         = azurerm_key_vault_secret.chatbot_anthropic_api_key.name
+  key_vault_id = module.key_vault["chatbot"].id
+}
+
 resource "azurerm_key_vault_secret" "chatbot_github_token" {
   name            = "github-token"
   value           = var.chatbot_github_token
@@ -211,11 +221,6 @@ resource "time_sleep" "wait_for_container_app_rbac" {
   ]
 }
 
-resource "random_password" "chatbot_backend_api_key" {
-  length  = 32
-  special = false
-}
-
 module "container_app" {
   source = "../../modules/container_app"
 
@@ -251,7 +256,7 @@ module "container_app" {
     },
     {
       name  = "backend-api-key"
-      value = random_password.chatbot_backend_api_key.result
+      value = var.chatbot_backend_api_key
     },
   ] : []
 
@@ -293,4 +298,21 @@ module "static_web_app" {
   sku_tier            = try(each.value.sku_tier, "Free")
   sku_size            = try(each.value.sku_size, "Free")
   tags                = each.value.tags
+
+  # Server-side env vars for the frontend's Route Handlers -- not part of
+  # the model (same reasoning as container_app's Key-Vault-backed secrets):
+  # only the "chatbot" entry has a backend to talk to.
+  #
+  # ANTHROPIC_API_KEY reads the *current* Key Vault secret value via the
+  # data source above, not var.chatbot_anthropic_api_key directly -- that
+  # variable is allowed to be blank on CI runs that don't resolve the real
+  # secret (the KV secret resource itself is protected by
+  # lifecycle.ignore_changes for exactly this reason). Sourcing from var.*
+  # here bypassed that protection and
+  # blanked this app setting the moment a blank-var apply ran.
+  app_settings = each.key == "chatbot" ? {
+    BACKEND_BASE_URL  = "https://${module.container_app["backend"].latest_revision_fqdn}"
+    BACKEND_API_KEY   = var.chatbot_backend_api_key
+    ANTHROPIC_API_KEY = data.azurerm_key_vault_secret.chatbot_anthropic_api_key_current.value
+  } : {}
 }
