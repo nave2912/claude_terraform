@@ -32,6 +32,17 @@
         "application": "azure-learning",
         "dataClassification": "internal"
       }
+    },
+    "rtytryutr_ddyu": {
+      "name": "rtytryutr",
+      "location": "CentralIndia",
+      "tags": {
+        "environment": "dev",
+        "owner": "platform-team",
+        "costCenter": "CC-LEARN-001",
+        "application": "azure-learning",
+        "dataClassification": "confidential"
+      }
     }
   }
 }
