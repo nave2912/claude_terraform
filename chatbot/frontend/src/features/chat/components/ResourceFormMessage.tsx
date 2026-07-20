@@ -35,6 +35,8 @@ export function ResourceFormMessage({ message }: { message: Extract<ChatMessage,
         resourceType={message.resourceType}
         allowedEnvironments={schemaInfoQuery.data.allowedEnvironments}
         defaultEnvironment={message.environment}
+        editingKey={message.editingKey}
+        initialValues={message.initialValues}
         submitting={previewMutation.isPending || submitted}
         onSubmit={(input) => previewMutation.mutate(input)}
       />

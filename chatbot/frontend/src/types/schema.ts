@@ -55,6 +55,10 @@ export interface ModelEntriesResponse {
   entries: Record<string, Record<string, unknown>>;
 }
 
+export interface ModulesResponse {
+  modules: string[];
+}
+
 export type PreviewOutcome =
   | { status: "validation_failed"; errors: string[] }
   | { status: "merged_file_invalid"; errors: string[] }

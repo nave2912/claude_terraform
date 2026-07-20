@@ -11,6 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(__dirname, "..", "..", "..", "..");
 export const MODELS_DIR = path.join(REPO_ROOT, "models");
 export const SCHEMA_DIR = path.join(MODELS_DIR, "schema");
+export const MODULES_DIR = path.join(REPO_ROOT, "modules");
 
 export function modelFilePath(environment: string, resourceType: string): string {
   return path.join(MODELS_DIR, environment, `${resourceType}.json`);
