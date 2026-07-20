@@ -3,16 +3,24 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { ResourceTypeInfo } from "@/types/schema";
 import { buildZodSchema } from "../utils/buildZodSchema";
-import { buildDefaultValue } from "../utils/schemaTree";
+import { buildDefaultValue, mergeExistingIntoDefault } from "../utils/schemaTree";
 
-export function useSchemaForm(resourceType: ResourceTypeInfo, defaultEnvironment?: string) {
+export function useSchemaForm(
+  resourceType: ResourceTypeInfo,
+  defaultEnvironment?: string,
+  initialValues?: Record<string, unknown>
+) {
   const entrySchema = resourceType.schema.properties[resourceType.containerKey].additionalProperties;
   const zodSchema = useMemo(() => buildZodSchema(entrySchema), [entrySchema]);
 
-  const defaultValues = useMemo(
-    () => buildDefaultValue(entrySchema, { defaultEnvironment }) as Record<string, unknown>,
-    [entrySchema, defaultEnvironment]
-  );
+  const defaultValues = useMemo(() => {
+    const base = buildDefaultValue(entrySchema, { defaultEnvironment }) as Record<string, unknown>;
+    // "Modify existing" pre-fill: only carries over fields the CURRENT
+    // schema still defines (see mergeExistingIntoDefault) -- safe even if
+    // the schema changed since this entry was originally created.
+    return initialValues ? (mergeExistingIntoDefault(entrySchema, base, initialValues) as Record<string, unknown>) : base;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entrySchema, defaultEnvironment, initialValues]);
 
   const form = useForm<Record<string, unknown>>({
     // The zod schema's exact shape is built dynamically from JSON Schema at

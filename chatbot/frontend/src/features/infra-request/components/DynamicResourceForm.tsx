@@ -22,6 +22,11 @@ interface Props {
   defaultEnvironment?: string;
   onSubmit: (input: StructuredProposalInput) => void;
   submitting?: boolean;
+  /** "Modify existing" mode: the real key this submission overwrites,
+   * instead of deriving a fresh one — and initialValues (below) pre-fills
+   * the form from that entry's current fields. */
+  editingKey?: string;
+  initialValues?: Record<string, unknown>;
 }
 
 /**
@@ -61,10 +66,12 @@ export function DynamicResourceForm({
   defaultEnvironment,
   onSubmit,
   submitting,
+  editingKey,
+  initialValues,
 }: Props) {
   const [environment, setEnvironment] = useState(defaultEnvironment ?? allowedEnvironments[0]);
 
-  const { form, entrySchema } = useSchemaForm(resourceType, environment);
+  const { form, entrySchema } = useSchemaForm(resourceType, environment, initialValues);
   const { control, handleSubmit, formState, setValue } = form;
 
   useEffect(() => {
@@ -76,7 +83,7 @@ export function DynamicResourceForm({
 
   const submit = handleSubmit((values) => {
     const fields = coerceSubmissionValue(entrySchema, values, true) as Record<string, unknown>;
-    const key = deriveKey(values, resourceType.resourceType);
+    const key = editingKey ?? deriveKey(values, resourceType.resourceType);
     onSubmit({ resourceType: resourceType.resourceType, environment, key, fields });
   });
 
@@ -84,7 +91,9 @@ export function DynamicResourceForm({
     <Card>
       <CardHeader>
         <CardTitle className="text-base">
-          New {resourceType.resourceType.replace(/-/g, " ")} — fill in every field, then submit once.
+          {editingKey
+            ? `Modify ${resourceType.resourceType.replace(/-/g, " ")} "${editingKey}" — only changed/mapped fields are pre-filled.`
+            : `New ${resourceType.resourceType.replace(/-/g, " ")} — fill in every field, then submit once.`}
         </CardTitle>
       </CardHeader>
       <CardContent>

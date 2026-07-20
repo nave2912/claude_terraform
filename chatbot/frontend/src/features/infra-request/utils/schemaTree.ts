@@ -135,6 +135,71 @@ export function buildDefaultValue(schema: JsonSchemaProperty, opts: { name?: str
 }
 
 /**
+ * Overlays a real existing entry's values onto a schema-shaped default
+ * tree, walking the CURRENT schema's own structure (not the existing
+ * entry's) — any attribute the existing entry has that the current schema
+ * no longer defines is silently dropped, and any attribute the current
+ * schema now requires that the existing entry never had stays at its
+ * schema default (usually empty). This is what "modify existing" pre-fill
+ * safely means once the schema can drift between when an entry was
+ * created and now: only fields present in both get carried over.
+ */
+export function mergeExistingIntoDefault(schema: JsonSchemaProperty, defaultValue: unknown, existing: unknown): unknown {
+  if (existing === undefined || existing === null) return defaultValue;
+  const kind = classifyField(schema);
+
+  switch (kind.kind) {
+    case "group-table":
+    case "nested-object": {
+      const existingObj = typeof existing === "object" && !Array.isArray(existing) ? (existing as Record<string, unknown>) : {};
+      const defaultObj = (defaultValue as Record<string, unknown>) ?? {};
+      const out: Record<string, unknown> = {};
+      for (const [name, propSchema] of Object.entries(kind.schema.properties ?? {})) {
+        out[name] = mergeExistingIntoDefault(propSchema, defaultObj[name], existingObj[name]);
+      }
+      return out;
+    }
+
+    case "map-object": {
+      if (typeof existing !== "object" || Array.isArray(existing)) return defaultValue;
+      const out: Record<string, unknown> = {};
+      for (const [key, entryValue] of Object.entries(existing as Record<string, unknown>)) {
+        const childDefault = buildDefaultValue(kind.valueSchema);
+        out[key] = mergeExistingIntoDefault(kind.valueSchema, childDefault, entryValue);
+      }
+      return out;
+    }
+
+    case "array-primitive":
+      return Array.isArray(existing) ? existing : defaultValue;
+
+    case "array-object-table": {
+      if (!Array.isArray(existing)) return defaultValue;
+      return existing.map((row) => {
+        const rowObj = typeof row === "object" && row !== null ? (row as Record<string, unknown>) : {};
+        const out: Record<string, unknown> = {};
+        for (const [name, propSchema] of Object.entries(kind.itemSchema.properties ?? {})) {
+          out[name] = mergeExistingIntoDefault(propSchema, buildDefaultValue(propSchema), rowObj[name]);
+        }
+        return out;
+      });
+    }
+
+    case "boolean":
+      return typeof existing === "boolean" ? existing : Boolean(existing);
+
+    case "raw-json":
+      return typeof existing === "string" ? existing : JSON.stringify(existing);
+
+    default:
+      // string / enum / number leaves: form inputs bind to strings (see
+      // coerceSubmissionValue's note on the form's string-leaf value tree).
+      if (typeof existing === "object") return defaultValue; // shape mismatch -- keep schema default
+      return String(existing);
+  }
+}
+
+/**
  * Converts the form's (string-leaf-based, for simple/consistent input
  * binding) nested value tree into the properly-typed JSON payload the
  * backend expects — numbers become real numbers, raw-json leaves get

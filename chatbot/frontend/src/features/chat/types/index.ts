@@ -5,7 +5,16 @@ export type ChatRole = "user" | "bot";
 export type ChatMessage =
   | { id: string; role: ChatRole; kind: "text"; text: string }
   | { id: string; role: "bot"; kind: "clarification"; question: string }
-  | { id: string; role: "bot"; kind: "resource-form"; resourceType: ResourceTypeInfo; environment?: string }
+  | {
+      id: string;
+      role: "bot";
+      kind: "resource-form";
+      resourceType: ResourceTypeInfo;
+      environment?: string;
+      /** "Modify existing" mode: see DynamicResourceForm's editingKey/initialValues. */
+      editingKey?: string;
+      initialValues?: Record<string, unknown>;
+    }
   | { id: string; role: "bot"; kind: "preview"; outcome: PreviewOutcome; input: StructuredProposalInput }
   | { id: string; role: "bot"; kind: "result"; outcome: ProposeOutcome }
   | { id: string; role: "bot"; kind: "error"; message: string };

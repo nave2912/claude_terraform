@@ -28,7 +28,7 @@ import fs from "node:fs";
 import { proposeStructuredChange } from "../pipeline/proposeStructuredChange.js";
 import { validateEntry, listResourceTypes, getResourceType } from "../validators/index.js";
 import { mergeEntry } from "../modelwriter/index.js";
-import { modelFilePath } from "../config/paths.js";
+import { modelFilePath, MODULES_DIR } from "../config/paths.js";
 import { mergePullRequest, deleteRemoteBranch, getPrStatus, getCommitStatus } from "../gitprovider/index.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -91,6 +91,29 @@ app.get("/schema-info", requireApiKey, (_req, res) => {
       schema: r.schema,
     })),
   });
+});
+
+/**
+ * Lists what this tool can build, straight from the modules/ directory
+ * itself (not from models/schema/*.schema.json) -- so it reflects every
+ * defined module, including any that don't have a chat-facing schema yet.
+ * Purely a directory listing: folder name in, folder name out, no
+ * special characters stripped beyond the underscore->space swap the
+ * frontend already does for every other field label.
+ */
+app.get("/modules", requireApiKey, (_req, res) => {
+  try {
+    const modules = fs
+      .readdirSync(MODULES_DIR, { withFileTypes: true })
+      // Leading underscore (e.g. _module_template) marks a scaffold, not a
+      // real, creatable resource type.
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith("_"))
+      .map((entry) => entry.name)
+      .sort();
+    res.json({ modules });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
 /**

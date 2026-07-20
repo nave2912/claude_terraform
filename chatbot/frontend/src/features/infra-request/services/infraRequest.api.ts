@@ -2,6 +2,7 @@ import type {
   CommitStatusResponse,
   MergeOutcome,
   ModelEntriesResponse,
+  ModulesResponse,
   PreviewOutcome,
   ProposeOutcome,
   PrStatusResponse,
@@ -30,6 +31,8 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const infraRequestApi = {
   getSchemaInfo: () => requestJson<SchemaInfoResponse>("/api/backend/schema-info"),
+
+  getModules: () => requestJson<ModulesResponse>("/api/backend/modules"),
 
   getModelEntries: (resourceType: string, environment: string) =>
     requestJson<ModelEntriesResponse>(
