@@ -34,6 +34,7 @@ module "static_web_app" {
 | `resource_group_name` | `string` | yes | Parent resource group name |
 | `sku_tier` | `string` | no | `Free` (default) or `Standard` |
 | `sku_size` | `string` | no | Must match `sku_tier` |
+| `app_settings` | `map(string)` | no | Server-side env vars for the app's Route Handlers / managed Functions (e.g. `BACKEND_BASE_URL`, `BACKEND_API_KEY`). Sensitive. |
 | `tags` | `map(string)` | yes | Must include `environment`, `owner`, `costCenter`, `application`, `dataClassification` |
 
 ## Outputs
