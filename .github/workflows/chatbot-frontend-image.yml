@@ -12,11 +12,7 @@ on:
     paths:
       - "chatbot/frontend/**"
       - ".github/workflows/chatbot-frontend-swa.yml"
-  pull_request:
-    types: [opened, synchronize, reopened, closed]
-    branches: [main]
-    paths:
-      - "chatbot/frontend/**"
+      
   workflow_dispatch: {}
 
 permissions:
