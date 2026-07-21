@@ -55,22 +55,44 @@ function genericVariableBlock(field: FieldSpec): string {
   return `variable "${field.name}" {\n${descriptionLine}  type        = ${field.hclType}\n${defaultLine}}`;
 }
 
-function resourceArgumentLine(field: FieldSpec, indent: string): string {
+/**
+ * Renders one field's value expression, recursively — provider schemas can
+ * nest blocks inside blocks (e.g. azurerm_linux_virtual_machine's os_disk
+ * contains a nested diff_disk_settings block, secret contains certificate)
+ * up to fieldExtraction.ts's MAX_DEPTH. A flat, single-level dynamic-block
+ * renderer produces invalid HCL for these ("Unsupported argument" —
+ * Terraform expects a nested block, not a flat assignment) — recursing
+ * here so any inner field that itself has `.nesting` becomes its own
+ * dynamic block instead of a bare `= value` line.
+ *
+ * `sourceExpr` is the expression that evaluates to this field's OWN value:
+ * `var.<name>` at the top level, or `<parentDynamicBlockName>.value.<name>`
+ * once already inside an ancestor dynamic block's `content`.
+ */
+function renderFieldValue(field: FieldSpec, sourceExpr: string, indent: string): string {
   if (!field.nesting) {
-    return `${indent}${field.name} = var.${field.name}`;
+    return `${indent}${field.name} = ${sourceExpr}`;
   }
 
   const inner = field.nestedFields ?? [];
   const contentLines = inner
-    .map((f) => `${indent}    ${f.name} = ${field.name}.value.${f.name}`)
+    .map((f) => renderFieldValue(f, `${field.name}.value.${f.name}`, `${indent}    `))
     .join("\n");
 
   // Uniform pattern for single/list/set nesting: normalize to a list so a
-  // "single" nested block (0 or 1 occurrence) and a repeatable one both
-  // use the same dynamic-block shape — a null single-block variable
-  // simply produces zero blocks.
+  // "single" nested block and a repeatable one both use the same
+  // dynamic-block shape. A REQUIRED single block is wrapped unconditionally
+  // ([sourceExpr]) rather than null-checked — the provider schema's own
+  // min_items constraint (e.g. "at least 1 certificate block required")
+  // would otherwise be violated whenever the null branch is taken, since
+  // Terraform enforces that constraint regardless of how the block count
+  // was computed.
   const forEach =
-    field.nesting === "single" ? `var.${field.name} == null ? [] : [var.${field.name}]` : `var.${field.name}`;
+    field.nesting === "single"
+      ? field.required
+        ? `[${sourceExpr}]`
+        : `${sourceExpr} == null ? [] : [${sourceExpr}]`
+      : sourceExpr;
 
   return (
     `${indent}dynamic "${field.name}" {\n` +
@@ -80,6 +102,10 @@ function resourceArgumentLine(field: FieldSpec, indent: string): string {
     `${indent}  }\n` +
     `${indent}}`
   );
+}
+
+function resourceArgumentLine(field: FieldSpec, indent: string): string {
+  return renderFieldValue(field, `var.${field.name}`, indent);
 }
 
 export interface GeneratedModuleFiles {

@@ -22,7 +22,18 @@ export function ScaffoldPlanMessage({ message }: { message: Extract<ChatMessage,
   const addMessage = useChatStore((s) => s.addMessage);
 
   const generateMutation = useMutation({
-    mutationFn: () => infraRequestApi.scaffoldModuleGenerate(plan.providerResourceType),
+    mutationFn: () => {
+      // Carry the descriptions the user already reviewed here through to
+      // generation — otherwise the generated variables.tf only gets a
+      // description when the azurerm provider's own schema happens to
+      // supply one (rare), which trips this repo's tflint
+      // terraform_documented_variables rule on nearly every field.
+      const fieldDescriptions: Record<string, string> = {};
+      for (const f of [...plan.mandatoryFields, ...plan.optionalFields]) {
+        if (f.description) fieldDescriptions[f.name] = f.description;
+      }
+      return infraRequestApi.scaffoldModuleGenerate(plan.providerResourceType, fieldDescriptions);
+    },
     onSuccess: (outcome) => {
       addMessage({ role: "bot", kind: "scaffold-result", outcome });
     },

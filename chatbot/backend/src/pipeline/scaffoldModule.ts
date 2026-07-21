@@ -114,6 +114,15 @@ function sampleValue(field: FieldSpec): unknown {
  */
 export async function scaffoldModule(
   providerResourceType: string,
+  // Top-level field name -> the human-readable description the user
+  // already reviewed in the chat plan (planIntent.ts's summarizeFields).
+  // Without this, generated variables only get a description when the
+  // azurerm provider's own schema happens to supply one for that
+  // attribute — true for very few attributes in practice — which trips
+  // this repo's tflint terraform_documented_variables rule on nearly
+  // every generic field. Only used to enrich prose; required/optional/
+  // type always come from the provider schema itself, never from here.
+  fieldDescriptions: Record<string, string> = {},
   requesterId?: string
 ): Promise<ScaffoldOutcome> {
   const denylistCheck = checkDenylist(providerResourceType);
@@ -132,9 +141,12 @@ export async function scaffoldModule(
   const containerKey = pluralize(moduleName);
   const schemaResourceType = toHyphenated(moduleName);
 
-  const allFields = extractFields(block);
-  const mandatoryFields = allFields.filter((f) => f.required);
-  const optionalFields = allFields.filter((f) => !f.required);
+  const withDescriptions = extractFields(block).map((f) => ({
+    ...f,
+    description: fieldDescriptions[f.name] ?? f.description,
+  }));
+  const mandatoryFields = withDescriptions.filter((f) => f.required);
+  const optionalFields = withDescriptions.filter((f) => !f.required);
   const computedAttributes = extractComputedAttributes(block);
   const versionConstraint = getAzurermVersionConstraint();
 
@@ -149,7 +161,7 @@ export async function scaffoldModule(
   const schemaJson = generateSchemaFile({ moduleName, containerKey, mandatoryFields, optionalFields });
   const tfTestFile = generateTfTestFile({ moduleName, resourceType: providerResourceType, mandatoryFields });
 
-  const selfCheck = selfCheckSchema(schemaJson, containerKey, allFields);
+  const selfCheck = selfCheckSchema(schemaJson, containerKey, withDescriptions);
   if (!selfCheck.valid) {
     return { status: "self_check_failed", errors: selfCheck.errors };
   }

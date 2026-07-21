@@ -71,9 +71,9 @@ export const infraRequestApi = {
       body: JSON.stringify({ message, resourceType }),
     }),
 
-  scaffoldModuleGenerate: (resourceType: string, requesterId?: string) =>
+  scaffoldModuleGenerate: (resourceType: string, fieldDescriptions?: Record<string, string>, requesterId?: string) =>
     requestJson<ScaffoldGenerateOutcome>("/api/backend/scaffold-module/generate", {
       method: "POST",
-      body: JSON.stringify({ resourceType, requesterId }),
+      body: JSON.stringify({ resourceType, fieldDescriptions, requesterId }),
     }),
 };

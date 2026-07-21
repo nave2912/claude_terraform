@@ -347,13 +347,19 @@ app.post("/scaffold-module/plan", requireApiKey, async (req: Request, res: Respo
  * other write route here.
  */
 app.post("/scaffold-module/generate", requireApiKey, async (req: Request, res: Response) => {
-  const { resourceType, requesterId } = req.body ?? {};
+  const { resourceType, fieldDescriptions, requesterId } = req.body ?? {};
   if (typeof resourceType !== "string" || !resourceType.trim()) {
-    res.status(400).json({ error: "body must be JSON: { resourceType: \"<azurerm_...>\", requesterId? }" });
+    res.status(400).json({
+      error: "body must be JSON: { resourceType: \"<azurerm_...>\", fieldDescriptions?: {name: description}, requesterId? }",
+    });
     return;
   }
   try {
-    const outcome = await scaffoldModule(resourceType, typeof requesterId === "string" ? requesterId : undefined);
+    const outcome = await scaffoldModule(
+      resourceType,
+      fieldDescriptions && typeof fieldDescriptions === "object" ? fieldDescriptions : undefined,
+      typeof requesterId === "string" ? requesterId : undefined
+    );
     res.json(outcome);
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
