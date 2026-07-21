@@ -1,0 +1,476 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://internal/schemas/linux-virtual-machine.schema.json",
+  "title": "linux_virtual_machine Model",
+  "description": "AI-scaffolded schema for JSON-driven linux_virtual_machine definitions — verify field constraints before use.",
+  "type": "object",
+  "required": [
+    "linux_virtual_machines"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "linux_virtual_machines": {
+      "type": "object",
+      "description": "Map keyed by a stable logical id. The key becomes the for_each key in Terraform.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "name",
+          "location",
+          "resource_group_name",
+          "tags",
+          "admin_username",
+          "network_interface_ids",
+          "size",
+          "os_disk"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "description": "Must follow naming convention: <workload>-<env> (lowercase, hyphen-separated)"
+          },
+          "location": {
+            "type": "string",
+            "minLength": 3
+          },
+          "resource_group_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Must match the \"name\" of an entry in resource-group.json."
+          },
+          "tags": {
+            "type": "object",
+            "required": [
+              "environment",
+              "owner",
+              "costCenter",
+              "application",
+              "dataClassification"
+            ],
+            "properties": {
+              "environment": {
+                "type": "string",
+                "enum": [
+                  "dev",
+                  "qa",
+                  "prod"
+                ]
+              },
+              "owner": {
+                "type": "string",
+                "minLength": 1
+              },
+              "costCenter": {
+                "type": "string",
+                "minLength": 1
+              },
+              "application": {
+                "type": "string",
+                "minLength": 1
+              },
+              "dataClassification": {
+                "type": "string",
+                "enum": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ]
+              }
+            },
+            "additionalProperties": true
+          },
+          "admin_username": {
+            "type": "string"
+          },
+          "network_interface_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "size": {
+            "type": "string"
+          },
+          "os_disk": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "caching": {
+                  "type": "string"
+                },
+                "disk_encryption_set_id": {
+                  "type": "string"
+                },
+                "disk_size_gb": {
+                  "type": "number"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "secure_vm_disk_encryption_set_id": {
+                  "type": "string"
+                },
+                "security_encryption_type": {
+                  "type": "string"
+                },
+                "storage_account_type": {
+                  "type": "string"
+                },
+                "write_accelerator_enabled": {
+                  "type": "boolean"
+                },
+                "diff_disk_settings": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "option": {
+                        "type": "string"
+                      },
+                      "placement": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                      "option"
+                    ]
+                  }
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "caching",
+                "storage_account_type"
+              ]
+            }
+          },
+          "admin_password": {
+            "type": "string"
+          },
+          "allow_extension_operations": {
+            "type": "boolean"
+          },
+          "availability_set_id": {
+            "type": "string"
+          },
+          "bypass_platform_safety_checks_on_user_schedule_enabled": {
+            "type": "boolean"
+          },
+          "capacity_reservation_group_id": {
+            "type": "string"
+          },
+          "computer_name": {
+            "type": "string"
+          },
+          "custom_data": {
+            "type": "string"
+          },
+          "dedicated_host_group_id": {
+            "type": "string"
+          },
+          "dedicated_host_id": {
+            "type": "string"
+          },
+          "disable_password_authentication": {
+            "type": "boolean"
+          },
+          "disk_controller_type": {
+            "type": "string"
+          },
+          "edge_zone": {
+            "type": "string"
+          },
+          "encryption_at_host_enabled": {
+            "type": "boolean"
+          },
+          "eviction_policy": {
+            "type": "string"
+          },
+          "extensions_time_budget": {
+            "type": "string"
+          },
+          "license_type": {
+            "type": "string"
+          },
+          "max_bid_price": {
+            "type": "number"
+          },
+          "patch_assessment_mode": {
+            "type": "string"
+          },
+          "patch_mode": {
+            "type": "string"
+          },
+          "platform_fault_domain": {
+            "type": "number"
+          },
+          "priority": {
+            "type": "string"
+          },
+          "provision_vm_agent": {
+            "type": "boolean"
+          },
+          "proximity_placement_group_id": {
+            "type": "string"
+          },
+          "reboot_setting": {
+            "type": "string"
+          },
+          "secure_boot_enabled": {
+            "type": "boolean"
+          },
+          "source_image_id": {
+            "type": "string"
+          },
+          "user_data": {
+            "type": "string"
+          },
+          "virtual_machine_scale_set_id": {
+            "type": "string"
+          },
+          "vm_agent_platform_updates_enabled": {
+            "type": "boolean"
+          },
+          "vtpm_enabled": {
+            "type": "boolean"
+          },
+          "zone": {
+            "type": "string"
+          },
+          "additional_capabilities": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "hibernation_enabled": {
+                  "type": "boolean"
+                },
+                "ultra_ssd_enabled": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "admin_ssh_key": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "public_key": {
+                  "type": "string"
+                },
+                "username": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "public_key",
+                "username"
+              ]
+            }
+          },
+          "boot_diagnostics": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "storage_account_uri": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "gallery_application": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "automatic_upgrade_enabled": {
+                  "type": "boolean"
+                },
+                "configuration_blob_uri": {
+                  "type": "string"
+                },
+                "order": {
+                  "type": "number"
+                },
+                "tag": {
+                  "type": "string"
+                },
+                "treat_failure_as_deployment_failure_enabled": {
+                  "type": "boolean"
+                },
+                "version_id": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "version_id"
+              ]
+            }
+          },
+          "identity": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "identity_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "type": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "type"
+              ]
+            }
+          },
+          "os_image_notification": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "timeout": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "plan": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "product": {
+                  "type": "string"
+                },
+                "publisher": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "name",
+                "product",
+                "publisher"
+              ]
+            }
+          },
+          "secret": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key_vault_id": {
+                  "type": "string"
+                },
+                "certificate": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                      "url"
+                    ]
+                  }
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "key_vault_id",
+                "certificate"
+              ]
+            }
+          },
+          "source_image_reference": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "offer": {
+                  "type": "string"
+                },
+                "publisher": {
+                  "type": "string"
+                },
+                "sku": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "offer",
+                "publisher",
+                "sku",
+                "version"
+              ]
+            }
+          },
+          "termination_notification": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "timeout": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "enabled"
+              ]
+            }
+          },
+          "timeouts": {
+            "type": "object",
+            "properties": {
+              "create": {
+                "type": "string"
+              },
+              "delete": {
+                "type": "string"
+              },
+              "read": {
+                "type": "string"
+              },
+              "update": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}
