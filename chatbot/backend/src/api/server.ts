@@ -30,6 +30,8 @@ import { validateEntry, listResourceTypes, getResourceType } from "../validators
 import { mergeEntry } from "../modelwriter/index.js";
 import { modelFilePath, MODULES_DIR } from "../config/paths.js";
 import { mergePullRequest, deleteRemoteBranch, getPrStatus, getCommitStatus } from "../gitprovider/index.js";
+import { planModuleScaffold } from "../pipeline/scaffoldModulePlan.js";
+import { scaffoldModule } from "../pipeline/scaffoldModule.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const API_KEY = process.env.API_KEY;
@@ -314,6 +316,50 @@ app.post("/merge-pr", requireApiKey, (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Read-only: turns a chat message ("I want to create a VM") into a
+ * human-reviewable plan (mandatory/optional fields, in plain language)
+ * sourced from the azurerm provider's own schema — see
+ * chatbot/docs's module-scaffolding notes. No git side effects, same
+ * "preview only" contract as /chat. Pass `resourceType` on a follow-up call
+ * once a clarification question has been answered, to skip re-resolving it.
+ */
+app.post("/scaffold-module/plan", requireApiKey, async (req: Request, res: Response) => {
+  const message = req.body?.message;
+  const resourceType = typeof req.body?.resourceType === "string" ? req.body.resourceType : undefined;
+  if (typeof message !== "string" || !message.trim()) {
+    res.status(400).json({ error: "body must be JSON: { \"message\": \"<text>\", \"resourceType\"?: \"<azurerm_...>\" }" });
+    return;
+  }
+  try {
+    const outcome = await planModuleScaffold(message, resourceType);
+    res.json(outcome);
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+/**
+ * Scaffolds a brand-new module + schema from the azurerm provider's own
+ * schema and opens it as a PR — never touches model entries or
+ * environments/<env>/main.tf (see the PR body it generates for the
+ * required manual follow-up steps). Never auto-merges, same as every
+ * other write route here.
+ */
+app.post("/scaffold-module/generate", requireApiKey, async (req: Request, res: Response) => {
+  const { resourceType, requesterId } = req.body ?? {};
+  if (typeof resourceType !== "string" || !resourceType.trim()) {
+    res.status(400).json({ error: "body must be JSON: { resourceType: \"<azurerm_...>\", requesterId? }" });
+    return;
+  }
+  try {
+    const outcome = await scaffoldModule(resourceType, typeof requesterId === "string" ? requesterId : undefined);
+    res.json(outcome);
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`chatbot backend listening on http://localhost:${PORT}`);
   console.log(`  GET  /health            - no auth`);
@@ -326,4 +372,6 @@ app.listen(PORT, () => {
   console.log(`  GET  /pr-status          - PR CI check status, requires x-api-key`);
   console.log(`  GET  /commit-status      - commit CI check status (post-merge apply tracking), requires x-api-key`);
   console.log(`  POST /merge-pr           - squash-merge a PR this pipeline opened, requires x-api-key`);
+  console.log(`  POST /scaffold-module/plan     - preview a new module's mandatory/optional fields, requires x-api-key`);
+  console.log(`  POST /scaffold-module/generate - scaffold a new module + schema and open a PR, requires x-api-key`);
 });

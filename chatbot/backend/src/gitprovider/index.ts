@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import path from "node:path";
 import { REPO_ROOT } from "../config/paths.js";
 
 /**
@@ -55,6 +56,26 @@ export function createChangeBranch(branchPrefix: string): string {
 export function writeAndCommit(filePath: string, content: string, message: string): void {
   fs.writeFileSync(filePath, content);
   git(["add", filePath]);
+  git(["commit", "-m", message]);
+}
+
+/**
+ * Writes several files and commits them together as a single commit.
+ * Used by multi-file operations (e.g. module scaffolding, which writes 5
+ * module files + a schema file + a test file in one go) so a partial
+ * failure never leaves a half-scaffolded branch with several disjoint
+ * commits — either every file lands in one commit, or `git commit` fails
+ * with nothing left committed. Directories are created as needed.
+ */
+export function writeMultipleAndCommit(
+  files: { filePath: string; content: string }[],
+  message: string
+): void {
+  for (const { filePath, content } of files) {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, content);
+  }
+  git(["add", ...files.map((f) => f.filePath)]);
   git(["commit", "-m", message]);
 }
 

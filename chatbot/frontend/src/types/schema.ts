@@ -119,3 +119,49 @@ export interface PrStatusResponse {
 }
 
 export type CommitStatusResponse = Omit<PrStatusResponse, "planSummary">;
+
+/** Mirrors chatbot/backend/src/moduleScaffold/fieldExtraction.ts's FieldSpec
+ * + the `description` merged on by planIntent.ts's summarizeFields. */
+export interface ScaffoldFieldSummary {
+  name: string;
+  hclType: string;
+  required: boolean;
+  description: string;
+  nesting?: "single" | "list" | "set" | "map";
+  nestedFields?: ScaffoldFieldSummary[];
+}
+
+export type ScaffoldPlanOutcome =
+  | { status: "clarification_needed"; question: string }
+  | { status: "no_action"; message: string }
+  | { status: "denied"; resourceType: string; reason: string }
+  | { status: "unknown_resource_type"; resourceType: string }
+  | {
+      status: "plan_ready";
+      providerResourceType: string;
+      moduleName: string;
+      summary: string;
+      mandatoryFields: ScaffoldFieldSummary[];
+      optionalFields: ScaffoldFieldSummary[];
+    };
+
+export type ScaffoldGenerateOutcome =
+  | { status: "denied"; resourceType: string; reason: string }
+  | { status: "unknown_resource_type"; resourceType: string }
+  | { status: "self_check_failed"; errors: string[] }
+  | {
+      status: "pr_opened";
+      providerResourceType: string;
+      moduleName: string;
+      branch: string;
+      prUrl: string;
+      filesChanged: string[];
+    }
+  | {
+      status: "pushed_no_pr";
+      providerResourceType: string;
+      moduleName: string;
+      branch: string;
+      compareUrl: string | null;
+      filesChanged: string[];
+    };
