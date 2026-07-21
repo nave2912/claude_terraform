@@ -81,6 +81,15 @@ skip-check:
   - CKV_AZURE_189
   - CKV2_AZURE_32
 
+  # --- modules/service_plan (Basic/Standard SKU, dev tier) ---
+  # Zone redundancy (zone_balancing_enabled) requires Premium v2/v3 (or
+  # equivalent Elastic Premium) SKUs with at least 3 workers — it does not
+  # exist as a capability on Basic/Standard tiers at all. This is a
+  # dev/cost-tier service plan, same tradeoff already made for the Basic
+  # container registry above; revisit per-instance if a plan is ever
+  # upgraded to a Premium SKU.
+  - CKV_AZURE_225
+
 download-external-modules: false
 
 compact: true
