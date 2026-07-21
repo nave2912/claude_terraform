@@ -6,6 +6,8 @@ import type {
   PreviewOutcome,
   ProposeOutcome,
   PrStatusResponse,
+  ScaffoldGenerateOutcome,
+  ScaffoldPlanOutcome,
   SchemaInfoResponse,
   StructuredProposalInput,
 } from "@/types/schema";
@@ -62,4 +64,16 @@ export const infraRequestApi = {
 
   getCommitStatus: (sha: string) =>
     requestJson<CommitStatusResponse>(`/api/backend/commit-status?sha=${encodeURIComponent(sha)}`),
+
+  scaffoldModulePlan: (message: string, resourceType?: string) =>
+    requestJson<ScaffoldPlanOutcome>("/api/backend/scaffold-module/plan", {
+      method: "POST",
+      body: JSON.stringify({ message, resourceType }),
+    }),
+
+  scaffoldModuleGenerate: (resourceType: string, fieldDescriptions?: Record<string, string>, requesterId?: string) =>
+    requestJson<ScaffoldGenerateOutcome>("/api/backend/scaffold-module/generate", {
+      method: "POST",
+      body: JSON.stringify({ resourceType, fieldDescriptions, requesterId }),
+    }),
 };
