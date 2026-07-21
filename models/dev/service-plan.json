@@ -15,6 +15,22 @@
       "sku_name": "B1",
       "per_site_scaling_enabled": false,
       "zone_balancing_enabled": false
+    },
+    "ssdsd_s7rt": {
+      "name": "ssdsd",
+      "location": "WestEurope",
+      "resource_group_name": "azure-learning-dev",
+      "tags": {
+        "environment": "dev",
+        "owner": "platform-team",
+        "costCenter": "CC-LEARN-001",
+        "application": "azure-learning",
+        "dataClassification": "internal"
+      },
+      "os_type": "Windows",
+      "sku_name": "B1",
+      "per_site_scaling_enabled": false,
+      "zone_balancing_enabled": false
     }
   }
 }

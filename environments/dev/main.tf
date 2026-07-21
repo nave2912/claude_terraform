@@ -322,3 +322,26 @@ module "static_web_app" {
     ANTHROPIC_API_KEY = data.azurerm_key_vault_secret.chatbot_anthropic_api_key_current.value
   } : {}
 }
+
+locals {
+  service_plan_model = jsondecode(file("${path.module}/../../models/${var.environment}/service-plan.json"))
+}
+
+module "service_plan" {
+  source = "../../modules/service_plan"
+
+  for_each = local.service_plan_model.service_plans
+
+  name                         = each.value.name
+  location                     = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].location
+  resource_group_name          = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].name
+  os_type                      = each.value.os_type
+  sku_name                     = each.value.sku_name
+  app_service_environment_id   = try(each.value.app_service_environment_id, null)
+  maximum_elastic_worker_count = try(each.value.maximum_elastic_worker_count, null)
+  per_site_scaling_enabled     = try(each.value.per_site_scaling_enabled, null)
+  worker_count                 = try(each.value.worker_count, null)
+  zone_balancing_enabled       = try(each.value.zone_balancing_enabled, null)
+  timeouts                     = try(each.value.timeouts, null)
+  tags                         = each.value.tags
+}
