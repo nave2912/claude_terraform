@@ -1,0 +1,134 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://internal/schemas/service-plan.schema.json",
+  "title": "service_plan Model",
+  "description": "AI-scaffolded schema for JSON-driven service_plan definitions — verify field constraints before use.",
+  "type": "object",
+  "required": [
+    "service_plans"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "service_plans": {
+      "type": "object",
+      "description": "Map keyed by a stable logical id. The key becomes the for_each key in Terraform.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "name",
+          "location",
+          "resource_group_name",
+          "tags",
+          "os_type",
+          "sku_name"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "description": "Must follow naming convention: <workload>-<env> (lowercase, hyphen-separated)"
+          },
+          "location": {
+            "type": "string",
+            "minLength": 3
+          },
+          "resource_group_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Must match the \"name\" of an entry in resource-group.json."
+          },
+          "tags": {
+            "type": "object",
+            "required": [
+              "environment",
+              "owner",
+              "costCenter",
+              "application",
+              "dataClassification"
+            ],
+            "properties": {
+              "environment": {
+                "type": "string",
+                "enum": [
+                  "dev",
+                  "qa",
+                  "prod"
+                ]
+              },
+              "owner": {
+                "type": "string",
+                "minLength": 1
+              },
+              "costCenter": {
+                "type": "string",
+                "minLength": 1
+              },
+              "application": {
+                "type": "string",
+                "minLength": 1
+              },
+              "dataClassification": {
+                "type": "string",
+                "enum": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ]
+              }
+            },
+            "additionalProperties": true
+          },
+          "os_type": {
+            "type": "string",
+            "description": "The operating system type for the service plan, either 'Windows' or 'Linux'."
+          },
+          "sku_name": {
+            "type": "string",
+            "description": "The pricing tier and size for the service plan, such as 'B1' (Basic), 'S1' (Standard), 'P1V2' (Premium V2), or 'Y1' (Dynamic for Functions)."
+          },
+          "app_service_environment_id": {
+            "type": "string",
+            "description": "Optional ID of an App Service Environment (isolated, dedicated environment) where this service plan should be created."
+          },
+          "maximum_elastic_worker_count": {
+            "type": "number",
+            "description": "The maximum number of workers that can be elastically scaled out for this service plan when using elastic scale-out SKUs."
+          },
+          "per_site_scaling_enabled": {
+            "type": "boolean",
+            "description": "When enabled (true), allows individual apps in this service plan to be scaled independently rather than scaling all apps together."
+          },
+          "worker_count": {
+            "type": "number",
+            "description": "The number of worker instances to allocate to the service plan, controlling how many virtual machines run your applications."
+          },
+          "zone_balancing_enabled": {
+            "type": "boolean",
+            "description": "When enabled (true), distributes worker instances across multiple availability zones for improved availability and resilience."
+          },
+          "timeouts": {
+            "type": "object",
+            "properties": {
+              "create": {
+                "type": "string"
+              },
+              "delete": {
+                "type": "string"
+              },
+              "read": {
+                "type": "string"
+              },
+              "update": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}
