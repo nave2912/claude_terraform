@@ -165,3 +165,25 @@ export type ScaffoldGenerateOutcome =
       compareUrl: string | null;
       filesChanged: string[];
     };
+
+export interface KeyVaultInfo {
+  environment: string;
+  key: string;
+  name: string;
+  resourceGroup: string;
+  vaultUri: string;
+}
+
+export interface KeyVaultListResponse {
+  vaults: KeyVaultInfo[];
+}
+
+export interface KeyVaultSecretsResponse {
+  names: string[];
+}
+
+export interface KeyVaultSetSecretOutcome {
+  status: "ok";
+  name: string;
+  updatedOn?: string;
+}

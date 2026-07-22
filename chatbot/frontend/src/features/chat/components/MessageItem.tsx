@@ -6,6 +6,7 @@ import { PreviewMessage } from "./PreviewMessage";
 import { PrResultCard } from "@/features/infra-request/components/PrResultCard";
 import { ScaffoldPlanMessage } from "./ScaffoldPlanMessage";
 import { ScaffoldResultMessage } from "./ScaffoldResultMessage";
+import { KeyVaultPanel } from "@/features/keyvault-request/components/KeyVaultPanel";
 
 export function MessageItem({ message }: { message: ChatMessage }) {
   switch (message.kind) {
@@ -43,5 +44,7 @@ export function MessageItem({ message }: { message: ChatMessage }) {
       return <ScaffoldPlanMessage message={message} />;
     case "scaffold-result":
       return <ScaffoldResultMessage message={message} />;
+    case "keyvault-panel":
+      return <KeyVaultPanel />;
   }
 }

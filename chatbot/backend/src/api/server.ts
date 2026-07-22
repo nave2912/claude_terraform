@@ -32,6 +32,10 @@ import { modelFilePath, MODULES_DIR } from "../config/paths.js";
 import { mergePullRequest, deleteRemoteBranch, getPrStatus, getCommitStatus } from "../gitprovider/index.js";
 import { planModuleScaffold } from "../pipeline/scaffoldModulePlan.js";
 import { scaffoldModule } from "../pipeline/scaffoldModule.js";
+import { listKeyVaults, findKeyVaultByName } from "../keyvault/registry.js";
+import { isKeyVaultConfigured } from "../keyvault/client.js";
+import { listSecretNames, setSecret, isValidSecretName } from "../keyvault/operations.js";
+import { logSecretWrite } from "../keyvault/audit.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const API_KEY = process.env.API_KEY;
@@ -366,6 +370,95 @@ app.post("/scaffold-module/generate", requireApiKey, async (req: Request, res: R
   }
 });
 
+/**
+ * Direct Azure Key Vault secret management — the only routes in this
+ * backend that bypass the git/PR pipeline entirely. There is no Terraform
+ * model change, no branch, no PR: a secret must never be committed, so it
+ * is written straight to the real vault via the Key Vault REST API instead.
+ * Because there is no PR review gate here, every write is scoped to vaults
+ * already known to this repo (models/<env>/key-vault.json) and logged
+ * (name only, never the value) via keyvault/audit.ts.
+ */
+app.get("/keyvault/list", requireApiKey, (_req: Request, res: Response) => {
+  if (!isKeyVaultConfigured()) {
+    res.status(503).json({
+      error: "AZURE_TENANT_ID/AZURE_CLIENT_ID/AZURE_CLIENT_SECRET are not configured on this server",
+    });
+    return;
+  }
+  const allowedEnvironments = (process.env.ALLOWED_ENVIRONMENTS ?? "dev")
+    .split(",")
+    .map((e) => e.trim());
+  try {
+    res.json({ vaults: listKeyVaults(allowedEnvironments) });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+app.get("/keyvault/:vaultName/secrets", requireApiKey, async (req: Request, res: Response) => {
+  if (!isKeyVaultConfigured()) {
+    res.status(503).json({
+      error: "AZURE_TENANT_ID/AZURE_CLIENT_ID/AZURE_CLIENT_SECRET are not configured on this server",
+    });
+    return;
+  }
+  const allowedEnvironments = (process.env.ALLOWED_ENVIRONMENTS ?? "dev")
+    .split(",")
+    .map((e) => e.trim());
+  const vault = findKeyVaultByName(allowedEnvironments, String(req.params.vaultName));
+  if (!vault) {
+    res.status(404).json({ error: `Unknown key vault "${req.params.vaultName}"` });
+    return;
+  }
+  try {
+    const names = await listSecretNames(vault.vaultUri);
+    res.json({ names });
+  } catch (err) {
+    res.status(502).json({ error: "Failed to list secrets from Azure Key Vault" });
+  }
+});
+
+app.post("/keyvault/:vaultName/secrets", requireApiKey, async (req: Request, res: Response) => {
+  if (!isKeyVaultConfigured()) {
+    res.status(503).json({
+      error: "AZURE_TENANT_ID/AZURE_CLIENT_ID/AZURE_CLIENT_SECRET are not configured on this server",
+    });
+    return;
+  }
+  const { name, value, requesterId } = req.body ?? {};
+  if (typeof name !== "string" || !isValidSecretName(name)) {
+    res.status(400).json({
+      error: "body.name must be a string matching Key Vault's naming rule: ^[0-9a-zA-Z-]{1,127}$",
+    });
+    return;
+  }
+  if (typeof value !== "string" || !value) {
+    res.status(400).json({ error: "body.value must be a non-empty string" });
+    return;
+  }
+  const allowedEnvironments = (process.env.ALLOWED_ENVIRONMENTS ?? "dev")
+    .split(",")
+    .map((e) => e.trim());
+  const vault = findKeyVaultByName(allowedEnvironments, String(req.params.vaultName));
+  if (!vault) {
+    res.status(404).json({ error: `Unknown key vault "${req.params.vaultName}"` });
+    return;
+  }
+  try {
+    const result = await setSecret(vault.vaultUri, name, value);
+    logSecretWrite({
+      requesterId: typeof requesterId === "string" ? requesterId : undefined,
+      vaultName: vault.name,
+      secretName: name,
+      action: "set",
+    });
+    res.json({ status: "ok", name: result.name, updatedOn: result.updatedOn });
+  } catch (err) {
+    res.status(502).json({ error: "Failed to write secret to Azure Key Vault" });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`chatbot backend listening on http://localhost:${PORT}`);
   console.log(`  GET  /health            - no auth`);
@@ -380,4 +473,7 @@ app.listen(PORT, () => {
   console.log(`  POST /merge-pr           - squash-merge a PR this pipeline opened, requires x-api-key`);
   console.log(`  POST /scaffold-module/plan     - preview a new module's mandatory/optional fields, requires x-api-key`);
   console.log(`  POST /scaffold-module/generate - scaffold a new module + schema and open a PR, requires x-api-key`);
+  console.log(`  GET  /keyvault/list                - known key vaults, requires x-api-key`);
+  console.log(`  GET  /keyvault/:vaultName/secrets  - secret names only (never values), requires x-api-key`);
+  console.log(`  POST /keyvault/:vaultName/secrets  - add/update a secret directly in Azure, requires x-api-key`);
 });
