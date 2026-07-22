@@ -5,6 +5,7 @@ import { classifyResourceIntent } from "@/features/infra-request/services/intent
 import { infraRequestApi } from "@/features/infra-request/services/infraRequest.api";
 
 const SCAFFOLD_COMMAND = /^\/tfmodules\b\s*(.*)$/i;
+const KEYVAULT_COMMAND = /^\/keyvault\b/i;
 
 /**
  * Orchestrates the "which resource do you want?" step: sends the user's
@@ -20,6 +21,12 @@ const SCAFFOLD_COMMAND = /^\/tfmodules\b\s*(.*)$/i;
  * normal schema-registry-constrained intent classifier entirely, since
  * scaffolding is explicitly for resource types that AREN'T in the schema
  * registry yet.
+ *
+ * A message starting with "/keyvault" instead opens a dedicated panel for
+ * managing Key Vault secrets directly (see
+ * chatbot/frontend/src/features/keyvault-request). No LLM/intent step at
+ * all here — it's pure UI navigation, since this bypasses the git/PR
+ * pipeline entirely and writes straight to Azure.
  */
 export function useChat() {
   const { messages, isBusy, addMessage, setBusy, reset } = useChatStore();
@@ -76,6 +83,12 @@ export function useChat() {
       addMessage({ role: "user", kind: "text", text });
 
       const trimmed = text.trim();
+
+      if (KEYVAULT_COMMAND.test(trimmed)) {
+        addMessage({ role: "bot", kind: "keyvault-panel" });
+        return;
+      }
+
       const scaffoldMatch = trimmed.match(SCAFFOLD_COMMAND);
 
       if (scaffoldMatch || scaffoldContext !== null) {
