@@ -15,8 +15,14 @@
       "max_replicas": 1,
       "external_enabled": true,
       "env": [
-        { "name": "GITHUB_REPO", "value": "nave2912/claude_terraform" },
-        { "name": "PORT", "value": "3000" }
+        {
+          "name": "GITHUB_REPO",
+          "value": "nave2912/claude_terraform"
+        },
+        {
+          "name": "PORT",
+          "value": "3000"
+        }
       ],
       "tags": {
         "environment": "dev",
