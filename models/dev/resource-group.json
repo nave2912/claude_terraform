@@ -10,6 +10,17 @@
         "application": "azure-learning",
         "dataClassification": "internal"
       }
+    },
+    "een12345nk_3cck": {
+      "name": "een12345nk",
+      "location": "westEurope",
+      "tags": {
+        "environment": "dev",
+        "owner": "demoqw",
+        "costCenter": "dffhkl",
+        "application": "jbnjdfdb",
+        "dataClassification": "public"
+      }
     }
   }
 }
