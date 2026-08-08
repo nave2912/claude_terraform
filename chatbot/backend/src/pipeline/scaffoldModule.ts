@@ -55,7 +55,8 @@ export type ScaffoldOutcome =
 function selfCheckSchema(
   schemaJson: string,
   containerKey: string,
-  allFields: FieldSpec[]
+  allFields: FieldSpec[],
+  primaryResourceGroupName: string
 ): { valid: boolean; errors: string[]; sampleEntry: Record<string, unknown> } {
   const schema = JSON.parse(schemaJson);
   const entrySchema = schema.properties[containerKey].additionalProperties;
@@ -74,7 +75,7 @@ function selfCheckSchema(
   const sampleEntry: Record<string, unknown> = {};
   for (const name of requiredNames) {
     const field = byName.get(name);
-    if (field) sampleEntry[name] = sampleValue(field);
+    if (field) sampleEntry[name] = sampleValue(field, primaryResourceGroupName);
   }
 
   const ajv = new Ajv({ allErrors: true, strict: false });
@@ -87,7 +88,33 @@ function selfCheckSchema(
   };
 }
 
-function sampleValue(field: FieldSpec): unknown {
+/**
+ * The one real Azure resource group in models/<environment>/resource-group.json
+ * (its "name", not its logical JSON key) — used as the starter entry's
+ * resource_group_name below. A literal "placeholder" string there is worse
+ * than merely wrong: environmentWiringGenerator.ts wires every
+ * resource_group_name field through
+ * `module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]]`,
+ * so a value that doesn't match any real resource group's name makes that
+ * lookup fail with "Invalid index" — breaking `terraform validate`/`tflint`
+ * for the PR outright, not just leaving a field a reviewer needs to edit.
+ * Falls back to the repo's conventional default if resource-group.json is
+ * somehow missing/empty (shouldn't happen — every environment has one).
+ */
+function resolvePrimaryResourceGroupName(environment: string): string {
+  const fallback = "azure-learning-dev";
+  const rgPath = modelFilePath(environment, "resource-group");
+  if (!fs.existsSync(rgPath)) return fallback;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(rgPath, "utf-8"));
+    const entries = Object.values(parsed.resource_groups ?? {}) as { name?: string }[];
+    return entries[0]?.name ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function sampleValue(field: FieldSpec, primaryResourceGroupName: string): unknown {
   if (field.name === "tags") {
     return {
       environment: "dev",
@@ -98,9 +125,12 @@ function sampleValue(field: FieldSpec): unknown {
     };
   }
   if (field.name === "name") return "azure-learning-dev";
+  // Must be a real resource group's name, not an arbitrary placeholder —
+  // see resolvePrimaryResourceGroupName's doc comment for why.
+  if (field.name === "resource_group_name") return primaryResourceGroupName;
   if (field.nesting) {
     const obj: Record<string, unknown> = {};
-    for (const nf of field.nestedFields ?? []) obj[nf.name] = sampleValue(nf);
+    for (const nf of field.nestedFields ?? []) obj[nf.name] = sampleValue(nf, primaryResourceGroupName);
     return field.nesting === "single" ? obj : [obj];
   }
   if (field.hclType === "number") return 1;
@@ -184,7 +214,8 @@ export async function scaffoldModule(
   const schemaJson = generateSchemaFile({ moduleName, containerKey, mandatoryFields, optionalFields });
   const tfTestFile = generateTfTestFile({ moduleName, resourceType: providerResourceType, mandatoryFields });
 
-  const selfCheck = selfCheckSchema(schemaJson, containerKey, withDescriptions);
+  const primaryResourceGroupName = resolvePrimaryResourceGroupName(environment);
+  const selfCheck = selfCheckSchema(schemaJson, containerKey, withDescriptions, primaryResourceGroupName);
   if (!selfCheck.valid) {
     return { status: "self_check_failed", errors: selfCheck.errors };
   }
