@@ -145,6 +145,51 @@ describe("scaffoldModule — azurerm_resource_group (offline, resource_group as 
   });
 });
 
+// A literal fixture with a resource_group_name field (e.g. shaped like
+// azurerm_storage_account or azurerm_cosmosdb_account) — the class of
+// resource type that exposed the "placeholder" regression below.
+const RESOURCE_GROUP_NAME_FIELD_BLOCK = {
+  attributes: {
+    id: { type: "string", computed: true },
+    name: { type: "string", required: true },
+    location: { type: "string", required: true },
+    resource_group_name: { type: "string", required: true },
+    tags: { type: ["map", "string"], optional: true },
+  },
+};
+
+describe("scaffoldModule — resource_group_name starter-entry regression", () => {
+  // Regression test: a scaffolded resource type with a resource_group_name
+  // field used to get a literal "placeholder" string for it in the starter
+  // entry. environmentWiringGenerator.ts wires every resource_group_name
+  // field through
+  // module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]],
+  // so "placeholder" (matching no real resource group) broke that lookup
+  // with a hard "Invalid index" error in terraform validate/tflint — first
+  // caught live via a scaffolded azurerm_machine_learning_workspace PR.
+  it("uses a real resource group name from models/dev/resource-group.json, never a placeholder", async () => {
+    mockGetProviderSchema.mockReturnValueOnce({
+      resourceType: "azurerm_cosmosdb_account",
+      block: RESOURCE_GROUP_NAME_FIELD_BLOCK,
+    });
+
+    const outcome = await scaffoldModule("azurerm_cosmosdb_account", "dev", {}, "test-fixture");
+    expect(outcome.status).toBe("pr_opened");
+
+    const files = mockWriteMultipleAndCommit.mock.calls.at(-1)![0] as { filePath: string; content: string }[];
+    const modelFile = files.find((f) => f.filePath.endsWith(path.join("dev", "cosmosdb-account.json")))!;
+    const modelJson = JSON.parse(modelFile.content);
+    const usedName = modelJson.cosmosdb_accounts.example.resource_group_name;
+
+    expect(usedName).not.toBe("placeholder");
+
+    const realResourceGroups = JSON.parse(
+      fs.readFileSync(path.join(REPO_ROOT, "models", "dev", "resource-group.json"), "utf-8")
+    ).resource_groups;
+    expect(Object.values(realResourceGroups).map((rg: any) => rg.name)).toContain(usedName);
+  });
+});
+
 describe("scaffoldModule — provider schema failures", () => {
   // Regression test: production once had no `terraform` binary in the
   // backend's Docker image, so getProviderSchema() threw a plain
