@@ -372,3 +372,34 @@ module "machine_learning_workspace" {
   timeouts                       = try(each.value.timeouts, null)
   tags                           = each.value.tags
 }
+
+locals {
+  function_app_model = jsondecode(file("${path.module}/../../models/${var.environment}/function-app.json"))
+}
+
+module "function_app" {
+  source = "../../modules/function_app"
+
+  for_each = local.function_app_model.function_apps
+
+  name                            = each.value.name
+  location                        = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].location
+  resource_group_name             = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].name
+  app_service_plan_id             = each.value.app_service_plan_id
+  storage_account_access_key      = each.value.storage_account_access_key
+  storage_account_name            = each.value.storage_account_name
+  app_settings                    = try(each.value.app_settings, null)
+  daily_memory_time_quota         = try(each.value.daily_memory_time_quota, null)
+  enable_builtin_logging          = try(each.value.enable_builtin_logging, null)
+  enabled                         = try(each.value.enabled, null)
+  key_vault_reference_identity_id = try(each.value.key_vault_reference_identity_id, null)
+  os_type                         = try(each.value.os_type, null)
+  version                         = try(each.value.version, null)
+  auth_settings                   = try(each.value.auth_settings, null)
+  connection_string               = try(each.value.connection_string, null)
+  identity                        = try(each.value.identity, null)
+  site_config                     = try(each.value.site_config, null)
+  source_control                  = try(each.value.source_control, null)
+  timeouts                        = try(each.value.timeouts, null)
+  tags                            = each.value.tags
+}
