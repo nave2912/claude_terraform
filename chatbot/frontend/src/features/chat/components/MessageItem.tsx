@@ -4,7 +4,6 @@ import { MessageBubble, TextBubble } from "./MessageBubble";
 import { ResourceFormMessage } from "./ResourceFormMessage";
 import { PreviewMessage } from "./PreviewMessage";
 import { PrResultCard } from "@/features/infra-request/components/PrResultCard";
-import { ScaffoldPlanMessage } from "./ScaffoldPlanMessage";
 import { ScaffoldResultMessage } from "./ScaffoldResultMessage";
 
 export function MessageItem({ message }: { message: ChatMessage }) {
@@ -39,8 +38,6 @@ export function MessageItem({ message }: { message: ChatMessage }) {
           <PrResultCard outcome={message.outcome} />
         </div>
       );
-    case "scaffold-plan":
-      return <ScaffoldPlanMessage message={message} />;
     case "scaffold-result":
       return <ScaffoldResultMessage message={message} />;
   }

@@ -135,41 +135,16 @@ export type FixPrApplyOutcome =
   | { status: "fix_applied"; branch: string; filesChanged: string[] }
   | { status: "apply_failed"; error: string };
 
-/** Mirrors chatbot/backend/src/moduleScaffold/fieldExtraction.ts's FieldSpec
- * + the `description` merged on by planIntent.ts's summarizeFields. */
-export interface ScaffoldFieldSummary {
-  name: string;
-  hclType: string;
-  required: boolean;
-  description: string;
-  /** A concrete, real example value Claude proposed for this (string)
-   * field — see chatbot/backend/src/moduleScaffold/planPrompt.ts's
-   * exampleValue instructions. Undefined when there was no meaningful
-   * real-world value to suggest. */
-  exampleValue?: string;
-  nesting?: "single" | "list" | "set" | "map";
-  nestedFields?: ScaffoldFieldSummary[];
-}
-
-export type ScaffoldPlanOutcome =
-  | { status: "clarification_needed"; question: string }
-  | { status: "no_action"; message: string }
-  | { status: "denied"; resourceType: string; reason: string }
-  | { status: "unknown_resource_type"; resourceType: string }
-  | {
-      status: "plan_ready";
-      providerResourceType: string;
-      moduleName: string;
-      summary: string;
-      mandatoryFields: ScaffoldFieldSummary[];
-      optionalFields: ScaffoldFieldSummary[];
-    };
-
+/** Mirrors chatbot/backend/src/pipeline/scaffoldModule.ts's ScaffoldOutcome
+ * — module IMPORT only (no starter instance), so this carries no field-level
+ * data at all. See chatbot/backend/src/pipeline/scaffoldModulePlan.ts if a
+ * read-only field-level preview is ever needed again (endpoint still exists,
+ * just no longer wired into the chat UI). */
 export type ScaffoldGenerateOutcome =
   | { status: "denied"; resourceType: string; reason: string }
   | { status: "unknown_resource_type"; resourceType: string }
   | { status: "environment_blocked"; environment: string; allowed: string[] }
-  | { status: "self_check_failed"; errors: string[] }
+  | { status: "schema_generation_failed"; errors: string[] }
   | {
       status: "pr_opened";
       providerResourceType: string;

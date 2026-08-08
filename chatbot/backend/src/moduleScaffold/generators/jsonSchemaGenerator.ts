@@ -119,7 +119,12 @@ export function generateSchemaFile(params: GenerateSchemaFileParams): string {
       [containerKey]: {
         type: "object",
         description: "Map keyed by a stable logical id. The key becomes the for_each key in Terraform.",
-        minProperties: 1,
+        // No minProperties — a freshly-imported module legitimately has
+        // zero instances until someone creates the first one through the
+        // UI form. Unlike resource-group.schema.json (hand-written, always
+        // required to have at least one — every environment needs a real
+        // resource group to exist), an arbitrary scaffolded resource type
+        // has no such foundational requirement.
         additionalProperties: {
           type: "object",
           required,

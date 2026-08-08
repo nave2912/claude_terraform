@@ -341,29 +341,23 @@ app.post("/scaffold-module/plan", requireApiKey, async (req: Request, res: Respo
 });
 
 /**
- * Scaffolds a brand-new module + schema from the azurerm provider's own
- * schema, wires it into environments/<environment>/main.tf, adds a starter
- * example entry to models/<environment>/<resourceType>.json, and opens it
- * all as one PR — apply-ready, not just a scaffold (see scaffoldModule.ts).
+ * Imports a brand-new module + schema from the azurerm provider's own
+ * schema and wires it into environments/<environment>/main.tf, with an
+ * EMPTY models/<environment>/<resourceType>.json (no starter instance —
+ * see scaffoldModule.ts's doc comment for why). No field review, no
+ * example values: nothing about a specific instance is decided here.
  * Never auto-merges, same as every other write route here.
  */
 app.post("/scaffold-module/generate", requireApiKey, async (req: Request, res: Response) => {
-  const { resourceType, environment, fieldDescriptions, fieldExamples, requesterId } = req.body ?? {};
+  const { resourceType, environment, requesterId } = req.body ?? {};
   if (typeof resourceType !== "string" || !resourceType.trim() || typeof environment !== "string" || !environment.trim()) {
     res.status(400).json({
-      error:
-        "body must be JSON: { resourceType: \"<azurerm_...>\", environment: \"<env>\", fieldDescriptions?: {name: description}, fieldExamples?: {name: exampleValue}, requesterId? }",
+      error: "body must be JSON: { resourceType: \"<azurerm_...>\", environment: \"<env>\", requesterId? }",
     });
     return;
   }
   try {
-    const outcome = await scaffoldModule(
-      resourceType,
-      environment,
-      fieldDescriptions && typeof fieldDescriptions === "object" ? fieldDescriptions : undefined,
-      fieldExamples && typeof fieldExamples === "object" ? fieldExamples : undefined,
-      typeof requesterId === "string" ? requesterId : undefined
-    );
+    const outcome = await scaffoldModule(resourceType, environment, typeof requesterId === "string" ? requesterId : undefined);
     res.json(outcome);
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
@@ -448,7 +442,7 @@ app.listen(PORT, () => {
   console.log(`  GET  /commit-status      - commit CI check status (post-merge apply tracking), requires x-api-key`);
   console.log(`  POST /merge-pr           - squash-merge a PR this pipeline opened, requires x-api-key`);
   console.log(`  POST /scaffold-module/plan     - preview a new module's mandatory/optional fields, requires x-api-key`);
-  console.log(`  POST /scaffold-module/generate - scaffold an apply-ready module + schema + wiring and open a PR, requires x-api-key`);
+  console.log(`  POST /scaffold-module/generate - import a new module + schema + wiring (no instance) and open a PR, requires x-api-key`);
   console.log(`  POST /terraform-route          - route a /terraform message to existing-type vs new-type, requires x-api-key`);
   console.log(`  POST /fix-pr/diagnose          - diagnose a failing PR's CI and propose a fix, requires x-api-key`);
   console.log(`  POST /fix-pr/apply             - apply a previously-diagnosed fix to the same PR branch, requires x-api-key`);
