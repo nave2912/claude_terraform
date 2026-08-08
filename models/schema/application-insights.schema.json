@@ -1,0 +1,149 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://internal/schemas/application-insights.schema.json",
+  "title": "application_insights Model",
+  "description": "AI-scaffolded schema for JSON-driven application_insights definitions — verify field constraints before use.",
+  "type": "object",
+  "required": [
+    "application_insights"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "application_insights": {
+      "type": "object",
+      "description": "Map keyed by a stable logical id. The key becomes the for_each key in Terraform.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "name",
+          "location",
+          "resource_group_name",
+          "tags",
+          "application_type"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "description": "Must follow naming convention: <workload>-<env> (lowercase, hyphen-separated)"
+          },
+          "location": {
+            "type": "string",
+            "minLength": 3
+          },
+          "resource_group_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Must match the \"name\" of an entry in resource-group.json."
+          },
+          "tags": {
+            "type": "object",
+            "required": [
+              "environment",
+              "owner",
+              "costCenter",
+              "application",
+              "dataClassification"
+            ],
+            "properties": {
+              "environment": {
+                "type": "string",
+                "enum": [
+                  "dev",
+                  "qa",
+                  "prod"
+                ]
+              },
+              "owner": {
+                "type": "string",
+                "minLength": 1
+              },
+              "costCenter": {
+                "type": "string",
+                "minLength": 1
+              },
+              "application": {
+                "type": "string",
+                "minLength": 1
+              },
+              "dataClassification": {
+                "type": "string",
+                "enum": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ]
+              }
+            },
+            "additionalProperties": true
+          },
+          "application_type": {
+            "type": "string",
+            "description": "The type of application being monitored, such as 'web' for web applications, 'ios' for iOS apps, 'java' for Java applications, or 'other' for general use cases."
+          },
+          "daily_data_cap_in_gb": {
+            "type": "number",
+            "description": "The maximum amount of telemetry data (in gigabytes) that can be ingested per day before throttling occurs."
+          },
+          "daily_data_cap_notifications_disabled": {
+            "type": "boolean",
+            "description": "Whether to disable email notifications when the daily data cap is reached. Set to true to suppress these alerts."
+          },
+          "disable_ip_masking": {
+            "type": "boolean",
+            "description": "Whether to disable the automatic masking of IP addresses in telemetry data. Set to true to store full IP addresses for compliance or debugging needs."
+          },
+          "force_customer_storage_for_profiler": {
+            "type": "boolean",
+            "description": "Whether to require customer-managed storage for the Application Insights Profiler feature instead of using Microsoft-managed storage."
+          },
+          "internet_ingestion_enabled": {
+            "type": "boolean",
+            "description": "Whether telemetry data can be ingested from public internet endpoints. Set to false to restrict ingestion to private networks only."
+          },
+          "internet_query_enabled": {
+            "type": "boolean",
+            "description": "Whether queries against Application Insights data can be made from public internet endpoints. Set to false to restrict queries to private networks only."
+          },
+          "local_authentication_disabled": {
+            "type": "boolean",
+            "description": "Whether to disable local authentication methods (such as API keys) and require Azure Active Directory authentication only."
+          },
+          "retention_in_days": {
+            "type": "number",
+            "description": "The number of days that telemetry data will be retained before automatic deletion, typically ranging from 30 to 730 days."
+          },
+          "sampling_percentage": {
+            "type": "number",
+            "description": "The percentage of telemetry data to retain (0-100), where lower values reduce costs by sampling and discarding some data."
+          },
+          "workspace_id": {
+            "type": "string",
+            "description": "The ID of the Log Analytics workspace to which Application Insights data should be sent. If not specified, a classic Application Insights resource is created."
+          },
+          "timeouts": {
+            "type": "object",
+            "properties": {
+              "create": {
+                "type": "string"
+              },
+              "delete": {
+                "type": "string"
+              },
+              "read": {
+                "type": "string"
+              },
+              "update": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

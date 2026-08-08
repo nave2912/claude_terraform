@@ -312,3 +312,30 @@ module "container_app" {
     time_sleep.wait_for_container_app_rbac,
   ]
 }
+
+locals {
+  application_insights_model = jsondecode(file("${path.module}/../../models/${var.environment}/application-insights.json"))
+}
+
+module "application_insights" {
+  source = "../../modules/application_insights"
+
+  for_each = local.application_insights_model.application_insights
+
+  name                                  = each.value.name
+  location                              = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].location
+  resource_group_name                   = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].name
+  application_type                      = each.value.application_type
+  daily_data_cap_in_gb                  = try(each.value.daily_data_cap_in_gb, null)
+  daily_data_cap_notifications_disabled = try(each.value.daily_data_cap_notifications_disabled, null)
+  disable_ip_masking                    = try(each.value.disable_ip_masking, null)
+  force_customer_storage_for_profiler   = try(each.value.force_customer_storage_for_profiler, null)
+  internet_ingestion_enabled            = try(each.value.internet_ingestion_enabled, null)
+  internet_query_enabled                = try(each.value.internet_query_enabled, null)
+  local_authentication_disabled         = try(each.value.local_authentication_disabled, null)
+  retention_in_days                     = try(each.value.retention_in_days, null)
+  sampling_percentage                   = try(each.value.sampling_percentage, null)
+  workspace_id                          = try(each.value.workspace_id, null)
+  timeouts                              = try(each.value.timeouts, null)
+  tags                                  = each.value.tags
+}
