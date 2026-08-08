@@ -109,6 +109,9 @@ export type MergeOutcome =
 export interface PrCheck {
   name: string;
   state: "success" | "failure" | "pending";
+  /** Only present for state === "failure" — a bounded excerpt of that
+   * check's own failed-step log (see chatbot/backend's attachErrorText). */
+  errorText?: string;
 }
 
 export interface PrStatusResponse {
@@ -119,6 +122,18 @@ export interface PrStatusResponse {
 }
 
 export type CommitStatusResponse = Omit<PrStatusResponse, "planSummary">;
+
+/** Mirrors chatbot/backend/src/pipeline/fixExistingPr.ts's DiagnoseOutcome. */
+export type FixPrDiagnoseOutcome =
+  | { status: "nothing_failing"; message: string }
+  | { status: "fix_proposed"; explanation: string; files: { filePath: string; newContent: string }[] }
+  | { status: "needs_clarification"; question: string }
+  | { status: "escalated"; reason: string };
+
+/** Mirrors chatbot/backend/src/pipeline/fixExistingPr.ts's ApplyOutcome. */
+export type FixPrApplyOutcome =
+  | { status: "fix_applied"; branch: string; filesChanged: string[] }
+  | { status: "apply_failed"; error: string };
 
 /** Mirrors chatbot/backend/src/moduleScaffold/fieldExtraction.ts's FieldSpec
  * + the `description` merged on by planIntent.ts's summarizeFields. */
