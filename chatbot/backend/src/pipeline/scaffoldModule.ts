@@ -157,6 +157,21 @@ export async function scaffoldModule(
     return { status: "schema_generation_failed", errors: selfCheck.errors };
   }
 
+  // Everything above this point is pure computation (provider schema,
+  // Claude call, file generation) with no dependency on repo state.
+  // createChangeBranch runs BEFORE anything below reads environments/
+  // <env>/main.tf or models/<env>/*.json from disk — both of those reads
+  // must see a freshly-checked-out origin/main, not whatever happened to
+  // be on disk a moment earlier. Regression: reading main.tf before this
+  // checkout meant a stale on-disk copy (e.g. one still missing a
+  // different module's wiring that had just merged moments earlier) got
+  // used to compute the "append" snippet, which was then written straight
+  // over the freshly-checked-out (correct, complete) file — silently
+  // deleting that other module's wiring instead of appending alongside
+  // it. First hit live: importing azurerm_function_app deleted the
+  // already-merged azurerm_machine_learning_workspace wiring.
+  const branch = createChangeBranch(`chatbot/scaffold-${moduleName}`);
+
   const moduleDir = path.join(MODULES_DIR, moduleName);
   const files = [
     { filePath: path.join(moduleDir, "main.tf"), content: formatHcl(moduleFiles.mainTf) },
@@ -196,8 +211,6 @@ export async function scaffoldModule(
   files.push({ filePath: modelPath, content: modelContent });
 
   const relativeFiles = files.map((f) => path.relative(REPO_ROOT, f.filePath).replace(/\\/g, "/"));
-
-  const branch = createChangeBranch(`chatbot/scaffold-${moduleName}`);
 
   const requestedBy = requesterId ? `\nRequested by: ${requesterId}` : "";
   const wiringNote = wiring
