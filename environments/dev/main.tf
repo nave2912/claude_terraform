@@ -339,3 +339,37 @@ module "application_insights" {
   timeouts                              = try(each.value.timeouts, null)
   tags                                  = each.value.tags
 }
+
+locals {
+  redis_cache_model = jsondecode(file("${path.module}/../../models/${var.environment}/redis-cache.json"))
+}
+
+module "redis_cache" {
+  source = "../../modules/redis_cache"
+
+  for_each = local.redis_cache_model.redis_caches
+
+  name                          = each.value.name
+  location                      = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].location
+  resource_group_name           = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].name
+  capacity                      = each.value.capacity
+  family                        = each.value.family
+  sku_name                      = each.value.sku_name
+  enable_non_ssl_port           = try(each.value.enable_non_ssl_port, null)
+  minimum_tls_version           = try(each.value.minimum_tls_version, null)
+  non_ssl_port_enabled          = try(each.value.non_ssl_port_enabled, null)
+  private_static_ip_address     = try(each.value.private_static_ip_address, null)
+  public_network_access_enabled = try(each.value.public_network_access_enabled, null)
+  redis_version                 = try(each.value.redis_version, null)
+  replicas_per_master           = try(each.value.replicas_per_master, null)
+  replicas_per_primary          = try(each.value.replicas_per_primary, null)
+  shard_count                   = try(each.value.shard_count, null)
+  subnet_id                     = try(each.value.subnet_id, null)
+  tenant_settings               = try(each.value.tenant_settings, null)
+  zones                         = try(each.value.zones, null)
+  identity                      = try(each.value.identity, null)
+  patch_schedule                = try(each.value.patch_schedule, null)
+  redis_configuration           = try(each.value.redis_configuration, null)
+  timeouts                      = try(each.value.timeouts, null)
+  tags                          = each.value.tags
+}
