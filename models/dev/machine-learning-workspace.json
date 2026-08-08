@@ -3,7 +3,7 @@
     "example": {
       "name": "azure-learning-dev",
       "location": "placeholder",
-      "resource_group_name": "placeholder",
+      "resource_group_name": "azure-learning-dev",
       "tags": {
         "environment": "dev",
         "owner": "platform-team",
