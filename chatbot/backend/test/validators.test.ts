@@ -4,7 +4,12 @@ import { listResourceTypes, validateEntry, validateModelFile } from "../src/vali
 describe("schema registry", () => {
   it("discovers resource types from models/schema/*.schema.json with zero hardcoding", () => {
     const types = listResourceTypes().map((r) => r.resourceType).sort();
-    expect(types).toEqual(["resource-group", "storage-account"]);
+    // Not an exhaustive list: new schema files (hand-authored or
+    // /tfmodules-scaffolded) land here over time. Assert the registry picks
+    // up its known-stable baseline rather than pinning the full set, which
+    // would go stale every time a module is added.
+    expect(types).toEqual(expect.arrayContaining(["resource-group", "storage-account"]));
+    expect(types.length).toBeGreaterThanOrEqual(2);
   });
 });
 

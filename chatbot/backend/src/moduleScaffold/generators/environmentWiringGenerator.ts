@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { REPO_ROOT } from "../../config/paths.js";
-import { loadResourceTypeRegistry } from "../../config/schemaRegistry.js";
+import { loadResourceTypeRegistry, type ResourceTypeDefinition } from "../../config/schemaRegistry.js";
 import { formatHcl } from "../terraformFmt.js";
 
 function moduleNameFor(resourceType: string): string {
@@ -31,10 +31,18 @@ export function isModuleWired(mainTfContent: string, moduleName: string): boolea
  * Returns null if the module is already wired (checked directly against
  * main.tf's own content, not any registry/cache) or the environment has no
  * main.tf — callers then commit only the model-entry file, same as before.
+ *
+ * `registryEntryOverride` lets a caller supply the resource-type definition
+ * directly instead of it being looked up from disk via
+ * loadResourceTypeRegistry(). scaffoldModule.ts needs this: it wires a
+ * brand-new resource type into main.tf in the same commit that first writes
+ * that type's schema file, so the schema isn't on disk yet for the normal
+ * registry lookup to find.
  */
 export function ensureEnvironmentWiring(
   resourceType: string,
-  environment: string
+  environment: string,
+  registryEntryOverride?: ResourceTypeDefinition
 ): { filePath: string; content: string } | null {
   const filePath = mainTfPath(environment);
   if (!fs.existsSync(filePath)) return null;
@@ -43,7 +51,8 @@ export function ensureEnvironmentWiring(
   const current = fs.readFileSync(filePath, "utf-8");
   if (isModuleWired(current, moduleName)) return null;
 
-  const registryEntry = loadResourceTypeRegistry().find((r) => r.resourceType === resourceType);
+  const registryEntry =
+    registryEntryOverride ?? loadResourceTypeRegistry().find((r) => r.resourceType === resourceType);
   if (!registryEntry) return null;
 
   const containerKey = registryEntry.containerKey;

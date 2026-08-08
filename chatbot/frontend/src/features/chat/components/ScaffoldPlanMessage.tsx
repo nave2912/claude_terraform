@@ -1,10 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { GitBranch } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { infraRequestApi } from "@/features/infra-request/services/infraRequest.api";
+import { useSchemaInfo } from "@/features/infra-request/hooks/useSchemaInfo";
 import { ScaffoldFieldList } from "@/features/infra-request/components/ScaffoldFieldList";
 import { useChatStore } from "../store/chat.store";
 import type { ChatMessage } from "../types";
@@ -12,14 +16,18 @@ import type { ChatMessage } from "../types";
 /**
  * Renders a `/tfmodules` scaffold plan inline in the chat transcript —
  * mandatory/optional fields sourced from the azurerm provider's own
- * schema, plus a confirm button that opens a PR (module + schema only,
- * see chatbot/backend/src/pipeline/scaffoldModule.ts). Result is posted
- * back as a new "scaffold-result" message, same pattern as
+ * schema, plus an environment picker and a confirm button that opens a PR
+ * (module + schema + environment wiring + a starter example entry, see
+ * chatbot/backend/src/pipeline/scaffoldModule.ts). Result is posted back as
+ * a new "scaffold-result" message, same pattern as
  * ResourceFormMessage -> preview -> result.
  */
 export function ScaffoldPlanMessage({ message }: { message: Extract<ChatMessage, { kind: "scaffold-plan" }> }) {
   const { plan } = message;
   const addMessage = useChatStore((s) => s.addMessage);
+  const schemaInfoQuery = useSchemaInfo();
+  const allowedEnvironments = schemaInfoQuery.data?.allowedEnvironments ?? ["dev"];
+  const [environment, setEnvironment] = useState(allowedEnvironments[0]);
 
   const generateMutation = useMutation({
     mutationFn: () => {
@@ -32,7 +40,7 @@ export function ScaffoldPlanMessage({ message }: { message: Extract<ChatMessage,
       for (const f of [...plan.mandatoryFields, ...plan.optionalFields]) {
         if (f.description) fieldDescriptions[f.name] = f.description;
       }
-      return infraRequestApi.scaffoldModuleGenerate(plan.providerResourceType, fieldDescriptions);
+      return infraRequestApi.scaffoldModuleGenerate(plan.providerResourceType, environment, fieldDescriptions);
     },
     onSuccess: (outcome) => {
       addMessage({ role: "bot", kind: "scaffold-result", outcome });
@@ -59,6 +67,29 @@ export function ScaffoldPlanMessage({ message }: { message: Extract<ChatMessage,
         <div className="flex max-h-80 flex-col gap-3 overflow-y-auto pr-1">
           <ScaffoldFieldList fields={plan.mandatoryFields} label="Mandatory fields" />
           <ScaffoldFieldList fields={plan.optionalFields} label="Optional fields" />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="scaffold-environment" className="text-xs">
+            Environment
+          </Label>
+          <Select
+            value={environment}
+            onValueChange={(value) => {
+              if (value) setEnvironment(value);
+            }}
+            disabled={generateMutation.isPending || generateMutation.isSuccess}
+          >
+            <SelectTrigger id="scaffold-environment" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {allowedEnvironments.map((env) => (
+                <SelectItem key={env} value={env}>
+                  {env}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <Button
           size="sm"

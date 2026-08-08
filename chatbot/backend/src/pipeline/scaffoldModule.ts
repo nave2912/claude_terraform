@@ -1,12 +1,14 @@
+import fs from "node:fs";
 import path from "node:path";
 import { Ajv } from "ajv";
-import { REPO_ROOT, MODULES_DIR, schemaFilePath } from "../config/paths.js";
+import { REPO_ROOT, MODULES_DIR, schemaFilePath, modelFilePath } from "../config/paths.js";
 import { checkDenylist } from "../moduleScaffold/denylist.js";
 import { getProviderSchema, getAzurermVersionConstraint } from "../moduleScaffold/providerSchema.js";
 import { extractFields, extractComputedAttributes, type FieldSpec } from "../moduleScaffold/fieldExtraction.js";
 import { generateModuleFiles } from "../moduleScaffold/generators/hclGenerator.js";
 import { generateSchemaFile } from "../moduleScaffold/generators/jsonSchemaGenerator.js";
 import { generateTfTestFile } from "../moduleScaffold/generators/tftestGenerator.js";
+import { ensureEnvironmentWiring } from "../moduleScaffold/generators/environmentWiringGenerator.js";
 import { formatHcl } from "../moduleScaffold/terraformFmt.js";
 import { deriveModuleName, pluralize, toHyphenated } from "../moduleScaffold/naming.js";
 import {
@@ -20,11 +22,13 @@ import {
 export type ScaffoldOutcome =
   | { status: "denied"; resourceType: string; reason: string }
   | { status: "unknown_resource_type"; resourceType: string }
+  | { status: "environment_blocked"; environment: string; allowed: string[] }
   | { status: "self_check_failed"; errors: string[] }
   | {
       status: "pr_opened";
       providerResourceType: string;
       moduleName: string;
+      environment: string;
       branch: string;
       prUrl: string;
       filesChanged: string[];
@@ -33,6 +37,7 @@ export type ScaffoldOutcome =
       status: "pushed_no_pr";
       providerResourceType: string;
       moduleName: string;
+      environment: string;
       branch: string;
       compareUrl: string | null;
       filesChanged: string[];
@@ -51,7 +56,7 @@ function selfCheckSchema(
   schemaJson: string,
   containerKey: string,
   allFields: FieldSpec[]
-): { valid: boolean; errors: string[] } {
+): { valid: boolean; errors: string[]; sampleEntry: Record<string, unknown> } {
   const schema = JSON.parse(schemaJson);
   const entrySchema = schema.properties[containerKey].additionalProperties;
 
@@ -78,6 +83,7 @@ function selfCheckSchema(
   return {
     valid,
     errors: valid ? [] : (validate.errors ?? []).map((e) => `${e.instancePath || "<root>"}: ${e.message}`),
+    sampleEntry,
   };
 }
 
@@ -105,15 +111,18 @@ function sampleValue(field: FieldSpec): unknown {
 }
 
 /**
- * Scaffolds a brand-new module + schema (never model entries, never
- * environments/<env>/main.tf — those are explicitly out of scope, see the
- * chat-driven-module-scaffolding plan) and opens it as a PR. Mirrors
- * proposeStructuredChange.ts's branch -> commit -> push -> PR shape, but
- * writes many files in one atomic commit via writeMultipleAndCommit
+ * Scaffolds a brand-new module + schema AND makes it apply-ready in the same
+ * commit: wires a `module "<name>" { ... }` block into
+ * environments/<env>/main.tf (via ensureEnvironmentWiring, same helper
+ * proposeStructuredChange.ts uses for existing types) and adds one
+ * self-check-validated example entry to models/<env>/<resourceType>.json.
+ * Mirrors proposeStructuredChange.ts's branch -> commit -> push -> PR shape,
+ * but writes many files in one atomic commit via writeMultipleAndCommit
  * instead of one.
  */
 export async function scaffoldModule(
   providerResourceType: string,
+  environment: string,
   // Top-level field name -> the human-readable description the user
   // already reviewed in the chat plan (planIntent.ts's summarizeFields).
   // Without this, generated variables only get a description when the
@@ -128,6 +137,13 @@ export async function scaffoldModule(
   const denylistCheck = checkDenylist(providerResourceType);
   if (denylistCheck.denied) {
     return { status: "denied", resourceType: providerResourceType, reason: denylistCheck.reason! };
+  }
+
+  const allowedEnvironments = (process.env.ALLOWED_ENVIRONMENTS ?? "dev")
+    .split(",")
+    .map((e) => e.trim());
+  if (!allowedEnvironments.includes(environment)) {
+    return { status: "environment_blocked", environment, allowed: allowedEnvironments };
   }
 
   let block;
@@ -176,16 +192,54 @@ export async function scaffoldModule(
     { filePath: schemaFilePath(schemaResourceType), content: schemaJson },
     { filePath: path.join(REPO_ROOT, "tests", "unit", `${moduleName}.tftest.hcl`), content: formatHcl(tfTestFile) },
   ];
+
+  // Brand-new resource type: environments/<env>/main.tf has no `module
+  // "<name>"` block for it yet, and the schema file we just generated isn't
+  // on disk yet either, so pass it in-memory via registryEntryOverride
+  // instead of the usual disk-registry lookup (see
+  // environmentWiringGenerator.ts's doc comment).
+  const wiring = ensureEnvironmentWiring(schemaResourceType, environment, {
+    resourceType: schemaResourceType,
+    containerKey,
+    schema: JSON.parse(schemaJson),
+  });
+  if (wiring) files.push(wiring);
+
+  // A minimal, self-check-validated starter entry so this PR is apply-ready
+  // end to end, not just a scaffolded module. Built directly from
+  // selfCheck's sampleEntry (already proven to satisfy the generated
+  // schema) rather than via modelwriter's mergeEntry -> validators'
+  // getResourceType, since that registry is a snapshot taken once at
+  // process startup and won't recognize a resource type scaffolded during
+  // this same server's lifetime.
+  const exampleKey = "example";
+  const exampleModelPath = modelFilePath(environment, schemaResourceType);
+  let exampleContainer: Record<string, unknown> = { [exampleKey]: selfCheck.sampleEntry };
+  if (fs.existsSync(exampleModelPath)) {
+    // Defensive only — shouldn't happen for a genuinely new resource type,
+    // since schemaFilePath(schemaResourceType) not existing on disk yet is
+    // exactly what makes this "new" in the first place.
+    const existing = JSON.parse(fs.readFileSync(exampleModelPath, "utf-8"));
+    exampleContainer = { ...(existing[containerKey] ?? {}), ...exampleContainer };
+  }
+  const exampleModelContent = JSON.stringify({ [containerKey]: exampleContainer }, null, 2) + "\n";
+  files.push({ filePath: exampleModelPath, content: exampleModelContent });
+
   const relativeFiles = files.map((f) => path.relative(REPO_ROOT, f.filePath).replace(/\\/g, "/"));
 
   const branch = createChangeBranch(`chatbot/scaffold-${moduleName}`);
 
   const requestedBy = requesterId ? `\nRequested by: ${requesterId}` : "";
+  const wiringNote = wiring
+    ? `\n\nAlso wires the module into environments/${environment}/main.tf and adds a starter ` +
+      `example entry ("${exampleKey}") to models/${environment}/${schemaResourceType}.json, so this ` +
+      `PR is apply-ready end-to-end.`
+    : `\n\nAdds a starter example entry ("${exampleKey}") to models/${environment}/${schemaResourceType}.json. ` +
+      `environments/${environment}/main.tf doesn't exist yet, so wiring the module block in is still a manual step.`;
   const commitMessage =
     `Scaffold module: ${providerResourceType}\n\n` +
     `AI-scaffolded from the azurerm provider's own schema (terraform providers ` +
-    `schema -json).${requestedBy}\n\n` +
-    `Adds a new module + schema only — no model entries, no environments/*/main.tf changes.`;
+    `schema -json).${requestedBy}${wiringNote}`;
   writeMultipleAndCommit(files, commitMessage);
 
   pushBranch(branch);
@@ -195,14 +249,9 @@ export async function scaffoldModule(
     `**AI-scaffolded Terraform module — requires Terraform-literate review.**\n\n` +
     `Generated from the azurerm provider's own machine-readable schema ` +
     `(\`terraform providers schema -json\`), not hand-written. Verify argument ` +
-    `correctness, defaults, and nested/dynamic block handling before merging.\n\n` +
-    `**This PR only adds a new module + schema — it does not create any resource ` +
-    `instance or modify any environment's \`main.tf\`.** Wiring a ` +
-    `\`module "${moduleName}" { ... }\` block into ` +
-    `\`environments/<env>/main.tf\` and adding example entries to ` +
-    `\`models/<env>/${schemaResourceType}.json\` are separate, manual follow-ups ` +
-    `(see ARCHITECTURE.md §10 steps 4-5).${requestedBy}\n\n` +
+    `correctness, defaults, and nested/dynamic block handling before merging.${wiringNote}${requestedBy}\n\n` +
     `Provider resource type: \`${providerResourceType}\`\n` +
+    `Environment: \`${environment}\`\n` +
     `Module: \`modules/${moduleName}\`\n` +
     `Schema: \`models/schema/${schemaResourceType}.schema.json\`\n\n` +
     `Files changed:\n` +
@@ -217,6 +266,7 @@ export async function scaffoldModule(
       status: "pr_opened",
       providerResourceType,
       moduleName,
+      environment,
       branch,
       prUrl: pr.prUrl,
       filesChanged: relativeFiles,
@@ -226,6 +276,7 @@ export async function scaffoldModule(
     status: "pushed_no_pr",
     providerResourceType,
     moduleName,
+    environment,
     branch,
     compareUrl: pr.compareUrl,
     filesChanged: relativeFiles,
