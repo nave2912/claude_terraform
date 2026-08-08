@@ -1,0 +1,27 @@
+{
+  "machine_learning_workspaces": {
+    "example": {
+      "name": "azure-learning-dev",
+      "location": "placeholder",
+      "resource_group_name": "placeholder",
+      "tags": {
+        "environment": "dev",
+        "owner": "platform-team",
+        "costCenter": "CC-LEARN-001",
+        "application": "azure-learning",
+        "dataClassification": "internal"
+      },
+      "application_insights_id": "placeholder",
+      "key_vault_id": "placeholder",
+      "storage_account_id": "placeholder",
+      "identity": [
+        {
+          "identity_ids": [
+            "placeholder"
+          ],
+          "type": "placeholder"
+        }
+      ]
+    }
+  }
+}
