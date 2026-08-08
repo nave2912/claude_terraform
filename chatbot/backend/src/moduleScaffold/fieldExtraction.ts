@@ -16,6 +16,11 @@ export interface FieldSpec {
   hclType: string;
   required: boolean;
   description?: string;
+  /** The secure/recommended literal value for a security-relevant optional
+   * field, filled in by planIntent.ts's summarizeFields — see
+   * planPrompt.ts's secureDefault instructions. Undefined for the
+   * overwhelming majority of fields. */
+  secureDefault?: string;
   /** Only set for fields derived from a nested block_type. */
   nesting?: "single" | "list" | "set" | "map";
   /** Only set alongside `nesting` — the inner block's own fields, so

@@ -77,8 +77,30 @@ export function ensureEnvironmentWiring(
     lines.push(`  location            = each.value.location`);
   }
   for (const field of extraFields) {
-    const accessor = required.includes(field) ? `each.value.${field}` : `try(each.value.${field}, null)`;
-    lines.push(`  ${field} = ${accessor}`);
+    if (required.includes(field)) {
+      lines.push(`  ${field} = each.value.${field}`);
+      continue;
+    }
+    // checkov statically analyzes THIS call site's expression, not the
+    // module's own variable default several files away — confirmed
+    // empirically (local checkov 3.3.9, matching CI's pinned version)
+    // that it never resolves ANY function-call expression, including
+    // `try(a, b)` even when `b` is a plain literal; it only traces a
+    // direct `var.x` reference back to that SAME module's own `default`
+    // declaration. So a security-relevant field (one with a JSON-Schema
+    // `default` — see jsonSchemaGenerator.ts's jsonSchemaDefault) is left
+    // OUT of the call site entirely: no argument line at all means
+    // Terraform applies the module's own variable default unconditionally,
+    // which checkov can actually see. The real, accepted trade-off: an
+    // instance's JSON model entry cannot override this specific field —
+    // security-relevant settings become a fixed module-level floor, not a
+    // per-instance opt-out. Regression: a scaffolded azurerm_redis_cache
+    // still failed checkov (public network access, TLS version, SSL-only)
+    // on import alone through two prior attempts (module-only default,
+    // then call-site try() fallback) until this.
+    const fieldSchema = properties[field] as { default?: unknown } | undefined;
+    if (fieldSchema && "default" in fieldSchema) continue;
+    lines.push(`  ${field} = try(each.value.${field}, null)`);
   }
   if ("tags" in properties) {
     lines.push(`  tags = each.value.tags`);

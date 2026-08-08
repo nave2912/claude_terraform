@@ -64,6 +64,14 @@ export interface FieldSummary extends FieldSpec {
    * had no meaningful real-world value to suggest (free-text/reference
    * fields), in which case callers fall back to a generic placeholder. */
   exampleValue?: string;
+  /** The secure/recommended literal value for a security-relevant OPTIONAL
+   * field — see planPrompt.ts's secureDefault instructions. Undefined for
+   * the overwhelming majority of fields (anything not security-relevant);
+   * when set, hclGenerator.ts uses it as the generated variable's own
+   * default instead of null, so a freshly-imported module with zero
+   * instances is still secure by construction — checkov statically
+   * analyzes the module's generated code regardless of instance count. */
+  secureDefault?: string;
 }
 
 export interface FieldsSummaryResult {
@@ -105,7 +113,12 @@ export async function summarizeFields(
     toolUse && toolUse.type === "tool_use"
       ? (toolUse.input as {
           summary?: string;
-          fieldDescriptions?: { name: string; description: string; exampleValue?: string }[];
+          fieldDescriptions?: {
+            name: string;
+            description: string;
+            exampleValue?: string;
+            secureDefault?: string;
+          }[];
         })
       : { summary: "", fieldDescriptions: [] };
 
@@ -118,12 +131,18 @@ export async function summarizeFields(
       .filter((f) => typeof f.exampleValue === "string" && f.exampleValue.length > 0)
       .map((f) => [f.name, f.exampleValue as string])
   );
+  const secureDefaults = new Map(
+    (input.fieldDescriptions ?? [])
+      .filter((f) => typeof f.secureDefault === "string" && f.secureDefault.length > 0)
+      .map((f) => [f.name, f.secureDefault as string])
+  );
 
   const attach = (fields: FieldSpec[]): FieldSummary[] =>
     fields.map((f) => ({
       ...f,
       description: descriptions.get(f.name) ?? f.description ?? "",
       exampleValue: exampleValues.get(f.name),
+      secureDefault: secureDefaults.get(f.name),
     }));
 
   return {

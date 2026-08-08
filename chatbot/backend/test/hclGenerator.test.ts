@@ -81,3 +81,73 @@ describe("generateModuleFiles — optional nested-block for_each null safety", (
     expect(mainTf).toMatch(/for_each\s*=\s*var\.timeouts == null \? \[\] : \[var\.timeouts\]/);
   });
 });
+
+/**
+ * Regression coverage for a real live failure: a scaffolded
+ * azurerm_redis_cache module (zero instances — checkov still statically
+ * analyzes the generated module code) failed CI on import alone, because
+ * every optional field's variable defaulted to bare `null`. checkov
+ * flagged public network access, TLS version, SSL-only access, and
+ * replication as insecure — none of which involve any instance ever
+ * existing. secureDefault bakes a secure literal into the variable's own
+ * default instead of null, for the small subset of fields that are
+ * actually security-relevant.
+ */
+describe("generateModuleFiles — secureDefault on optional variables", () => {
+  const REQUIRED_NAME_FIELD: FieldSpec = { name: "name", hclType: "string", required: true };
+
+  it("uses a secureDefault string as the variable's own default instead of null", () => {
+    const tlsField: FieldSpec = {
+      name: "minimum_tls_version",
+      hclType: "string",
+      required: false,
+      secureDefault: "1.2",
+    };
+
+    const { variablesTf } = generateModuleFiles({
+      resourceType: "azurerm_redis_cache",
+      moduleName: "redis_cache",
+      mandatoryFields: [REQUIRED_NAME_FIELD],
+      optionalFields: [tlsField],
+      computedAttributes: [],
+      versionConstraint: ">= 3.90.0, < 4.0.0",
+    });
+
+    expect(variablesTf).toMatch(/variable "minimum_tls_version" \{[^}]*default\s*=\s*"1\.2"/s);
+  });
+
+  it("uses a secureDefault bool as a bare true/false, not a quoted string", () => {
+    const sslField: FieldSpec = {
+      name: "enable_non_ssl_port",
+      hclType: "bool",
+      required: false,
+      secureDefault: "false",
+    };
+
+    const { variablesTf } = generateModuleFiles({
+      resourceType: "azurerm_redis_cache",
+      moduleName: "redis_cache",
+      mandatoryFields: [REQUIRED_NAME_FIELD],
+      optionalFields: [sslField],
+      computedAttributes: [],
+      versionConstraint: ">= 3.90.0, < 4.0.0",
+    });
+
+    expect(variablesTf).toMatch(/variable "enable_non_ssl_port" \{[^}]*default\s*=\s*false(?!")/s);
+  });
+
+  it("still defaults to null when no secureDefault is given (most fields)", () => {
+    const ordinaryField: FieldSpec = { name: "capacity", hclType: "number", required: false };
+
+    const { variablesTf } = generateModuleFiles({
+      resourceType: "azurerm_redis_cache",
+      moduleName: "redis_cache",
+      mandatoryFields: [REQUIRED_NAME_FIELD],
+      optionalFields: [ordinaryField],
+      computedAttributes: [],
+      versionConstraint: ">= 3.90.0, < 4.0.0",
+    });
+
+    expect(variablesTf).toMatch(/variable "capacity" \{[^}]*default\s*=\s*null/s);
+  });
+});

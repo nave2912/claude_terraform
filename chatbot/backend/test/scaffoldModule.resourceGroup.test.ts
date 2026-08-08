@@ -6,12 +6,12 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
- * Regression fixture for the apply-ready scaffold fix: scaffolds
+ * Regression fixture for module import (no starter instance): scaffolds
  * "azurerm_resource_group" end-to-end (fully offline — provider schema,
- * `terraform fmt`, and git/gh are all mocked) and checks the generated
- * output against the real, hand-built modules/resource_group +
- * models/schema/resource-group.schema.json, which is this repo's reference
- * "simple resource" pattern.
+ * the Claude field-description call, `terraform fmt`, and git/gh are all
+ * mocked) and checks the generated output against the real, hand-built
+ * modules/resource_group + models/schema/resource-group.schema.json,
+ * which is this repo's reference "simple resource" pattern.
  *
  * jest.unstable_mockModule + a dynamic import() (rather than the usual
  * `jest.mock`) because this project's jest config runs ESM
@@ -21,6 +21,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const mockGetProviderSchema = jest.fn();
 const mockGetAzurermVersionConstraint = jest.fn();
+const mockSummarizeFields = jest.fn();
 const mockCreateChangeBranch = jest.fn();
 const mockWriteMultipleAndCommit = jest.fn();
 const mockPushBranch = jest.fn();
@@ -30,6 +31,15 @@ const mockReturnToMain = jest.fn();
 jest.unstable_mockModule("../src/moduleScaffold/providerSchema.js", () => ({
   getProviderSchema: mockGetProviderSchema,
   getAzurermVersionConstraint: mockGetAzurermVersionConstraint,
+}));
+
+// scaffoldModule() still calls summarizeFields internally (variables.tf
+// needs a description on every field or tflint's terraform_documented_
+// variables rule fails) even though there's no starter instance anymore —
+// mocked here as an identity-ish pass-through so tests don't need real
+// network/API-key access.
+jest.unstable_mockModule("../src/moduleScaffold/planIntent.js", () => ({
+  summarizeFields: mockSummarizeFields,
 }));
 
 // Identity — avoids depending on the `terraform` binary being on PATH in
@@ -68,6 +78,18 @@ const RESOURCE_GROUP_BLOCK = {
   },
 };
 
+// summarizeFields's real contract: same FieldSpec objects passed in, with
+// a `description` merged on — no exampleValue needed by anything anymore,
+// but the mock still accepts/ignores it since the real function returns it.
+function echoWithDescriptions(_resourceType: string, mandatoryFields: any[], optionalFields: any[]) {
+  const attach = (fields: any[]) => fields.map((f) => ({ ...f, description: `${f.name} description` }));
+  return Promise.resolve({
+    summary: "A test resource.",
+    mandatoryFields: attach(mandatoryFields),
+    optionalFields: attach(optionalFields),
+  });
+}
+
 describe("scaffoldModule — azurerm_resource_group (offline, resource_group as regression fixture)", () => {
   beforeAll(() => {
     mockGetProviderSchema.mockReturnValue({
@@ -80,10 +102,11 @@ describe("scaffoldModule — azurerm_resource_group (offline, resource_group as 
       prUrl: "https://github.com/nave2912/claude_terraform/pull/999",
       compareUrl: null,
     });
+    mockSummarizeFields.mockImplementation(echoWithDescriptions);
   });
 
   it("generates a schema whose required fields match the real hand-authored resource-group.schema.json", async () => {
-    await scaffoldModule("azurerm_resource_group", "dev", {}, {}, "test-fixture");
+    await scaffoldModule("azurerm_resource_group", "dev", "test-fixture");
 
     const files = mockWriteMultipleAndCommit.mock.calls[0][0] as { filePath: string; content: string }[];
     const schemaFile = files.find((f) => f.filePath.endsWith("resource-group.schema.json"))!;
@@ -96,10 +119,14 @@ describe("scaffoldModule — azurerm_resource_group (offline, resource_group as 
     expect(generated.properties.resource_groups.additionalProperties.required.slice().sort()).toEqual(
       realSchema.properties.resource_groups.additionalProperties.required.slice().sort()
     );
+    // A freshly-imported module has zero instances at first — unlike the
+    // hand-written resource-group.schema.json, the generated schema must
+    // not require at least one entry to exist yet.
+    expect(generated.properties.resource_groups.minProperties).toBeUndefined();
   });
 
   it("generates a main.tf resource block structurally consistent with the hand-built module", async () => {
-    await scaffoldModule("azurerm_resource_group", "dev", {}, {}, "test-fixture");
+    await scaffoldModule("azurerm_resource_group", "dev", "test-fixture");
 
     const files = mockWriteMultipleAndCommit.mock.calls[0][0] as { filePath: string; content: string }[];
     const mainTf = files.find((f) => f.filePath.endsWith(path.join("resource_group", "main.tf")))!;
@@ -113,8 +140,8 @@ describe("scaffoldModule — azurerm_resource_group (offline, resource_group as 
     // azurerm_resource_group's own schema has no way to know to add.
   });
 
-  it("runs the full pipeline end-to-end and produces an apply-ready PR (module + schema + starter entry)", async () => {
-    const outcome = await scaffoldModule("azurerm_resource_group", "dev", {}, {}, "test-fixture");
+  it("runs the full pipeline end-to-end and imports the module (no starter instance)", async () => {
+    const outcome = await scaffoldModule("azurerm_resource_group", "dev", "test-fixture");
 
     expect(outcome.status).toBe("pr_opened");
     if (outcome.status !== "pr_opened") return;
@@ -130,129 +157,44 @@ describe("scaffoldModule — azurerm_resource_group (offline, resource_group as 
     // existing type never re-wires or duplicates a module block.
     expect(outcome.filesChanged).not.toContain("environments/dev/main.tf");
 
-    const files = mockWriteMultipleAndCommit.mock.calls.at(-1)![0] as { filePath: string; content: string }[];
-    const modelFile = files.find((f) => f.filePath.endsWith(path.join("dev", "resource-group.json")))!;
-    const modelJson = JSON.parse(modelFile.content);
-    expect(modelJson.resource_groups.example).toMatchObject({
-      name: expect.any(String),
-      location: expect.any(String),
-      tags: expect.objectContaining({ environment: "dev" }),
-    });
-
     expect(mockPushBranch).toHaveBeenCalled();
     expect(mockOpenPullRequest).toHaveBeenCalled();
     expect(mockReturnToMain).toHaveBeenCalled();
   });
-});
 
-// A literal fixture with a resource_group_name field (e.g. shaped like
-// azurerm_storage_account or azurerm_cosmosdb_account) — the class of
-// resource type that exposed the "placeholder" regression below.
-const RESOURCE_GROUP_NAME_FIELD_BLOCK = {
-  attributes: {
-    id: { type: "string", computed: true },
-    name: { type: "string", required: true },
-    location: { type: "string", required: true },
-    resource_group_name: { type: "string", required: true },
-    tags: { type: ["map", "string"], optional: true },
-  },
-};
-
-describe("scaffoldModule — resource_group_name starter-entry regression", () => {
-  // Regression test: a scaffolded resource type with a resource_group_name
-  // field used to get a literal "placeholder" string for it in the starter
-  // entry. environmentWiringGenerator.ts wires every resource_group_name
-  // field through
-  // module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]],
-  // so "placeholder" (matching no real resource group) broke that lookup
-  // with a hard "Invalid index" error in terraform validate/tflint — first
-  // caught live via a scaffolded azurerm_machine_learning_workspace PR.
-  it("uses a real resource group name from models/dev/resource-group.json, never a placeholder", async () => {
+  it("creates an EMPTY container for a genuinely new resource type — no starter instance", async () => {
+    // azurerm_cosmosdb_account has no models/dev/cosmosdb-account.json on
+    // disk yet — this is the "truly new" case, as opposed to resource_group
+    // above (already onboarded, already has real entries).
     mockGetProviderSchema.mockReturnValueOnce({
       resourceType: "azurerm_cosmosdb_account",
-      block: RESOURCE_GROUP_NAME_FIELD_BLOCK,
+      block: RESOURCE_GROUP_BLOCK,
     });
 
-    const outcome = await scaffoldModule("azurerm_cosmosdb_account", "dev", {}, {}, "test-fixture");
+    const outcome = await scaffoldModule("azurerm_cosmosdb_account", "dev", "test-fixture");
     expect(outcome.status).toBe("pr_opened");
 
     const files = mockWriteMultipleAndCommit.mock.calls.at(-1)![0] as { filePath: string; content: string }[];
     const modelFile = files.find((f) => f.filePath.endsWith(path.join("dev", "cosmosdb-account.json")))!;
     const modelJson = JSON.parse(modelFile.content);
-    const usedName = modelJson.cosmosdb_accounts.example.resource_group_name;
 
-    expect(usedName).not.toBe("placeholder");
-
-    const realResourceGroups = JSON.parse(
-      fs.readFileSync(path.join(REPO_ROOT, "models", "dev", "resource-group.json"), "utf-8")
-    ).resource_groups;
-    expect(Object.values(realResourceGroups).map((rg: any) => rg.name)).toContain(usedName);
-  });
-});
-
-// A literal fixture with a required plain-string field that's really an
-// enum the azurerm provider enforces but its own schema JSON never exposes
-// (application_type's real shape) — the class of field that exposed the
-// regression below.
-const REQUIRED_ENUM_STRING_FIELD_BLOCK = {
-  attributes: {
-    id: { type: "string", computed: true },
-    name: { type: "string", required: true },
-    location: { type: "string", required: true },
-    resource_group_name: { type: "string", required: true },
-    application_type: { type: "string", required: true },
-    tags: { type: ["map", "string"], optional: true },
-  },
-};
-
-describe("scaffoldModule — fieldExamples starter-entry regression", () => {
-  // Regression test: azurerm_application_insights's required
-  // application_type field only accepts a fixed set of values
-  // (["web" "other" "java" "MobileCenter" "phone" "store" "ios" "Node.JS"])
-  // enforced by the provider's Go SDK — invisible to
-  // `terraform providers schema -json`, which only reports "string". Every
-  // fresh scaffold got a literal "placeholder" for it and failed terraform
-  // plan with "expected application_type to be one of [...], got
-  // placeholder" (live on PRs #65 and #66, since the per-PR fix to #65
-  // only patched that one branch, not the generator). fieldExamples lets
-  // the same Claude call that already writes the field's plain-English
-  // description also supply a real, valid value.
-  it("uses a provided fieldExamples value for a required string field instead of a generic placeholder", async () => {
-    mockGetProviderSchema.mockReturnValueOnce({
-      resourceType: "azurerm_application_insights",
-      block: REQUIRED_ENUM_STRING_FIELD_BLOCK,
-    });
-
-    const outcome = await scaffoldModule(
-      "azurerm_application_insights",
-      "dev",
-      {},
-      { application_type: "web" },
-      "test-fixture"
-    );
-    expect(outcome.status).toBe("pr_opened");
-
-    const files = mockWriteMultipleAndCommit.mock.calls.at(-1)![0] as { filePath: string; content: string }[];
-    const modelFile = files.find((f) => f.filePath.endsWith(path.join("dev", "application-insights.json")))!;
-    const modelJson = JSON.parse(modelFile.content);
-
-    expect(modelJson.application_insights.example.application_type).toBe("web");
+    expect(modelJson).toEqual({ cosmosdb_accounts: {} });
   });
 
-  it("still falls back to a generic placeholder when no fieldExamples value is given", async () => {
-    mockGetProviderSchema.mockReturnValueOnce({
-      resourceType: "azurerm_application_insights",
-      block: REQUIRED_ENUM_STRING_FIELD_BLOCK,
-    });
+  it("preserves existing entries when re-importing an already-onboarded type (idempotent, never wipes real data)", async () => {
+    const realModelPath = path.join(REPO_ROOT, "models", "dev", "resource-group.json");
+    const realModelBefore = JSON.parse(fs.readFileSync(realModelPath, "utf-8"));
+    // Sanity: resource_group is already onboarded in this repo and has real
+    // entries — otherwise this test would be vacuously true.
+    expect(Object.keys(realModelBefore.resource_groups).length).toBeGreaterThan(0);
 
-    const outcome = await scaffoldModule("azurerm_application_insights", "dev", {}, {}, "test-fixture");
-    expect(outcome.status).toBe("pr_opened");
+    await scaffoldModule("azurerm_resource_group", "dev", "test-fixture");
 
     const files = mockWriteMultipleAndCommit.mock.calls.at(-1)![0] as { filePath: string; content: string }[];
-    const modelFile = files.find((f) => f.filePath.endsWith(path.join("dev", "application-insights.json")))!;
+    const modelFile = files.find((f) => f.filePath.endsWith(path.join("dev", "resource-group.json")))!;
     const modelJson = JSON.parse(modelFile.content);
 
-    expect(modelJson.application_insights.example.application_type).toBe("placeholder");
+    expect(modelJson).toEqual(realModelBefore);
   });
 });
 
@@ -268,7 +210,7 @@ describe("scaffoldModule — provider schema failures", () => {
       throw new Error("spawn terraform ENOENT");
     });
 
-    await expect(scaffoldModule("azurerm_cosmosdb_account", "dev", {}, {}, "test-fixture")).rejects.toThrow(
+    await expect(scaffoldModule("azurerm_cosmosdb_account", "dev", "test-fixture")).rejects.toThrow(
       "spawn terraform ENOENT"
     );
   });
@@ -278,7 +220,7 @@ describe("scaffoldModule — provider schema failures", () => {
       throw new Error('Unknown azurerm resource type "azurerm_not_a_real_thing".');
     });
 
-    const outcome = await scaffoldModule("azurerm_not_a_real_thing", "dev", {}, {}, "test-fixture");
+    const outcome = await scaffoldModule("azurerm_not_a_real_thing", "dev", "test-fixture");
     expect(outcome).toEqual({ status: "unknown_resource_type", resourceType: "azurerm_not_a_real_thing" });
   });
 });

@@ -4,7 +4,8 @@ import { Ajv } from "ajv";
 import { REPO_ROOT, MODULES_DIR, schemaFilePath, modelFilePath } from "../config/paths.js";
 import { checkDenylist } from "../moduleScaffold/denylist.js";
 import { getProviderSchema, getAzurermVersionConstraint } from "../moduleScaffold/providerSchema.js";
-import { extractFields, extractComputedAttributes, type FieldSpec } from "../moduleScaffold/fieldExtraction.js";
+import { extractFields, extractComputedAttributes } from "../moduleScaffold/fieldExtraction.js";
+import { summarizeFields } from "../moduleScaffold/planIntent.js";
 import { generateModuleFiles } from "../moduleScaffold/generators/hclGenerator.js";
 import { generateSchemaFile } from "../moduleScaffold/generators/jsonSchemaGenerator.js";
 import { generateTfTestFile } from "../moduleScaffold/generators/tftestGenerator.js";
@@ -23,7 +24,7 @@ export type ScaffoldOutcome =
   | { status: "denied"; resourceType: string; reason: string }
   | { status: "unknown_resource_type"; resourceType: string }
   | { status: "environment_blocked"; environment: string; allowed: string[] }
-  | { status: "self_check_failed"; errors: string[] }
+  | { status: "schema_generation_failed"; errors: string[] }
   | {
       status: "pr_opened";
       providerResourceType: string;
@@ -44,148 +45,47 @@ export type ScaffoldOutcome =
     };
 
 /**
- * Sanity-checks the generator's OWN output: builds a synthetic example
- * entry from the field list and validates it against the schema we just
- * generated, via a fresh Ajv instance — NOT the shared validators/index.ts
- * `validateEntry`, since that reads the schema registry once at process
- * startup and won't know about a schema file that doesn't exist on disk
- * yet. This still validates the same thing (does the generated schema
- * accept a plausible generated entry?) before anything is committed.
+ * Sanity-checks the generator's OWN output — that the JSON Schema it just
+ * produced is itself well-formed and compiles — via a fresh Ajv instance,
+ * NOT the shared validators/index.ts `validateEntry` (that reads the
+ * schema registry once at process startup and won't know about a schema
+ * file that doesn't exist on disk yet). No sample instance is built or
+ * validated here: importing a module creates zero resource instances, so
+ * there's nothing yet for a real entry to satisfy — that happens later,
+ * per-instance, through the normal UI form (preview/propose-structured),
+ * which already validates against this exact schema file once it exists.
  */
-function selfCheckSchema(
-  schemaJson: string,
-  containerKey: string,
-  allFields: FieldSpec[],
-  primaryResourceGroupName: string,
-  fieldExamples: Record<string, string>
-): { valid: boolean; errors: string[]; sampleEntry: Record<string, unknown> } {
+function selfCheckGeneratedSchema(schemaJson: string, containerKey: string): { valid: boolean; errors: string[] } {
   const schema = JSON.parse(schemaJson);
-  const entrySchema = schema.properties[containerKey].additionalProperties;
-
-  // The generated schema's own `required` list is NOT the same set as
-  // `mandatoryFields` (provider-required): module-standard fields
-  // (name/location/resource_group_name/tags) are always forced required by
-  // this repo's convention regardless of whether the azurerm provider
-  // itself treats them as optional (tags almost always is). Build the
-  // sample entry from whatever the schema actually requires, looking up
-  // each field's real type/nesting from the full extracted field list so
-  // sampleValue still produces a well-typed value for it.
-  const byName = new Map(allFields.map((f) => [f.name, f]));
-  const requiredNames: string[] = entrySchema.required ?? [];
-
-  const sampleEntry: Record<string, unknown> = {};
-  for (const name of requiredNames) {
-    const field = byName.get(name);
-    if (field) sampleEntry[name] = sampleValue(field, primaryResourceGroupName, fieldExamples);
+  const entrySchema = schema.properties?.[containerKey]?.additionalProperties;
+  if (!entrySchema) {
+    return { valid: false, errors: [`Generated schema is missing properties.${containerKey}.additionalProperties`] };
   }
-
-  const ajv = new Ajv({ allErrors: true, strict: false });
-  const validate = ajv.compile(entrySchema);
-  const valid = validate(sampleEntry) as boolean;
-  return {
-    valid,
-    errors: valid ? [] : (validate.errors ?? []).map((e) => `${e.instancePath || "<root>"}: ${e.message}`),
-    sampleEntry,
-  };
-}
-
-/**
- * The one real Azure resource group in models/<environment>/resource-group.json
- * (its "name", not its logical JSON key) — used as the starter entry's
- * resource_group_name below. A literal "placeholder" string there is worse
- * than merely wrong: environmentWiringGenerator.ts wires every
- * resource_group_name field through
- * `module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]]`,
- * so a value that doesn't match any real resource group's name makes that
- * lookup fail with "Invalid index" — breaking `terraform validate`/`tflint`
- * for the PR outright, not just leaving a field a reviewer needs to edit.
- * Falls back to the repo's conventional default if resource-group.json is
- * somehow missing/empty (shouldn't happen — every environment has one).
- */
-function resolvePrimaryResourceGroupName(environment: string): string {
-  const fallback = "azure-learning-dev";
-  const rgPath = modelFilePath(environment, "resource-group");
-  if (!fs.existsSync(rgPath)) return fallback;
   try {
-    const parsed = JSON.parse(fs.readFileSync(rgPath, "utf-8"));
-    const entries = Object.values(parsed.resource_groups ?? {}) as { name?: string }[];
-    return entries[0]?.name ?? fallback;
-  } catch {
-    return fallback;
+    const ajv = new Ajv({ allErrors: true, strict: false });
+    ajv.compile(entrySchema);
+    return { valid: true, errors: [] };
+  } catch (err) {
+    return { valid: false, errors: [err instanceof Error ? err.message : String(err)] };
   }
-}
-
-function sampleValue(
-  field: FieldSpec,
-  primaryResourceGroupName: string,
-  fieldExamples: Record<string, string> = {}
-): unknown {
-  if (field.name === "tags") {
-    return {
-      environment: "dev",
-      owner: "platform-team",
-      costCenter: "CC-LEARN-001",
-      application: "azure-learning",
-      dataClassification: "internal",
-    };
-  }
-  if (field.name === "name") return "azure-learning-dev";
-  // Must be a real resource group's name, not an arbitrary placeholder —
-  // see resolvePrimaryResourceGroupName's doc comment for why.
-  if (field.name === "resource_group_name") return primaryResourceGroupName;
-  if (field.nesting) {
-    const obj: Record<string, unknown> = {};
-    for (const nf of field.nestedFields ?? [])
-      obj[nf.name] = sampleValue(nf, primaryResourceGroupName, fieldExamples);
-    return field.nesting === "single" ? obj : [obj];
-  }
-  if (field.hclType === "number") return 1;
-  if (field.hclType === "bool") return true;
-  if (/^(list|set)\(/.test(field.hclType)) return ["placeholder"];
-  if (/^map\(/.test(field.hclType)) return { key: "value" };
-  // Plain string fields are where a literal "placeholder" actually breaks
-  // things: many azurerm string arguments only accept a fixed set of
-  // values (an enum enforced by the provider's Go SDK, never visible in
-  // `terraform providers schema -json` — see planPrompt.ts's exampleValue
-  // instructions). A real example (e.g. application_type -> "web"),
-  // supplied by the same Claude call that already writes this field's
-  // plain-English description, replaces the guaranteed-wrong generic
-  // placeholder with a value grounded in Claude's own azurerm knowledge.
-  // Regression: azurerm_application_insights's required application_type
-  // field failed terraform plan with "expected application_type to be one
-  // of [...], got placeholder" on every fresh scaffold (PRs #65, #66) until
-  // this fallback existed.
-  if (field.hclType === "string" && fieldExamples[field.name]) return fieldExamples[field.name];
-  return "placeholder";
 }
 
 /**
- * Scaffolds a brand-new module + schema AND makes it apply-ready in the same
- * commit: wires a `module "<name>" { ... }` block into
- * environments/<env>/main.tf (via ensureEnvironmentWiring, same helper
- * proposeStructuredChange.ts uses for existing types) and adds one
- * self-check-validated example entry to models/<env>/<resourceType>.json.
- * Mirrors proposeStructuredChange.ts's branch -> commit -> push -> PR shape,
- * but writes many files in one atomic commit via writeMultipleAndCommit
- * instead of one.
+ * Imports a brand-new module: generates the module's own .tf files + JSON
+ * Schema + a tftest fixture, wires an empty `module "<name>" { for_each =
+ * local.<x>_model.<container> ... }` block into environments/<env>/main.tf,
+ * and creates models/<env>/<resourceType>.json with an EMPTY container —
+ * zero instances, on purpose. This is deliberately NOT "apply-ready": no
+ * starter entry means nothing for terraform plan to evaluate beyond "no
+ * changes," and no field values need to be reviewed or guessed (real
+ * values — including any that reference another Azure resource only the
+ * user knows about — are for a human to supply once, later, through the
+ * schema-driven UI form when they actually want an instance). Mirrors
+ * proposeStructuredChange.ts's branch -> commit -> push -> PR shape.
  */
 export async function scaffoldModule(
   providerResourceType: string,
   environment: string,
-  // Top-level field name -> the human-readable description the user
-  // already reviewed in the chat plan (planIntent.ts's summarizeFields).
-  // Without this, generated variables only get a description when the
-  // azurerm provider's own schema happens to supply one for that
-  // attribute — true for very few attributes in practice — which trips
-  // this repo's tflint terraform_documented_variables rule on nearly
-  // every generic field. Only used to enrich prose; required/optional/
-  // type always come from the provider schema itself, never from here.
-  fieldDescriptions: Record<string, string> = {},
-  // Field name -> a concrete real example value the user already reviewed
-  // in the chat plan (planIntent.ts's summarizeFields's exampleValue). Only
-  // applied to plain string fields, in place of the generic "placeholder"
-  // fallback — see sampleValue's doc comment for why this matters.
-  fieldExamples: Record<string, string> = {},
   requesterId?: string
 ): Promise<ScaffoldOutcome> {
   const denylistCheck = checkDenylist(providerResourceType);
@@ -218,37 +118,59 @@ export async function scaffoldModule(
   const containerKey = pluralize(moduleName);
   const schemaResourceType = toHyphenated(moduleName);
 
-  const withDescriptions = extractFields(block).map((f) => ({
-    ...f,
-    description: fieldDescriptions[f.name] ?? f.description,
-  }));
-  const mandatoryFields = withDescriptions.filter((f) => f.required);
-  const optionalFields = withDescriptions.filter((f) => !f.required);
+  const allFields = extractFields(block);
+  const mandatoryFields = allFields.filter((f) => f.required);
+  const optionalFields = allFields.filter((f) => !f.required);
   const computedAttributes = extractComputedAttributes(block);
   const versionConstraint = getAzurermVersionConstraint();
+
+  // Still needed even with no starter entry: every generic field's
+  // variables.tf entry needs a description or this repo's tflint
+  // terraform_documented_variables rule fails on nearly every field (the
+  // provider's own schema rarely supplies one) — see hclGenerator.ts.
+  // exampleValue (also returned here) is ignored; there's no instance to
+  // populate with it anymore.
+  const summarized = await summarizeFields(providerResourceType, mandatoryFields, optionalFields);
 
   const moduleFiles = generateModuleFiles({
     resourceType: providerResourceType,
     moduleName,
-    mandatoryFields,
-    optionalFields,
+    mandatoryFields: summarized.mandatoryFields,
+    optionalFields: summarized.optionalFields,
     computedAttributes,
     versionConstraint,
   });
-  const schemaJson = generateSchemaFile({ moduleName, containerKey, mandatoryFields, optionalFields });
-  const tfTestFile = generateTfTestFile({ moduleName, resourceType: providerResourceType, mandatoryFields });
-
-  const primaryResourceGroupName = resolvePrimaryResourceGroupName(environment);
-  const selfCheck = selfCheckSchema(
-    schemaJson,
+  const schemaJson = generateSchemaFile({
+    moduleName,
     containerKey,
-    withDescriptions,
-    primaryResourceGroupName,
-    fieldExamples
-  );
+    mandatoryFields: summarized.mandatoryFields,
+    optionalFields: summarized.optionalFields,
+  });
+  const tfTestFile = generateTfTestFile({
+    moduleName,
+    resourceType: providerResourceType,
+    mandatoryFields: summarized.mandatoryFields,
+  });
+
+  const selfCheck = selfCheckGeneratedSchema(schemaJson, containerKey);
   if (!selfCheck.valid) {
-    return { status: "self_check_failed", errors: selfCheck.errors };
+    return { status: "schema_generation_failed", errors: selfCheck.errors };
   }
+
+  // Everything above this point is pure computation (provider schema,
+  // Claude call, file generation) with no dependency on repo state.
+  // createChangeBranch runs BEFORE anything below reads environments/
+  // <env>/main.tf or models/<env>/*.json from disk — both of those reads
+  // must see a freshly-checked-out origin/main, not whatever happened to
+  // be on disk a moment earlier. Regression: reading main.tf before this
+  // checkout meant a stale on-disk copy (e.g. one still missing a
+  // different module's wiring that had just merged moments earlier) got
+  // used to compute the "append" snippet, which was then written straight
+  // over the freshly-checked-out (correct, complete) file — silently
+  // deleting that other module's wiring instead of appending alongside
+  // it. First hit live: importing azurerm_function_app deleted the
+  // already-merged azurerm_machine_learning_workspace wiring.
+  const branch = createChangeBranch(`chatbot/scaffold-${moduleName}`);
 
   const moduleDir = path.join(MODULES_DIR, moduleName);
   const files = [
@@ -273,51 +195,45 @@ export async function scaffoldModule(
   });
   if (wiring) files.push(wiring);
 
-  // A minimal, self-check-validated starter entry so this PR is apply-ready
-  // end to end, not just a scaffolded module. Built directly from
-  // selfCheck's sampleEntry (already proven to satisfy the generated
-  // schema) rather than via modelwriter's mergeEntry -> validators'
-  // getResourceType, since that registry is a snapshot taken once at
-  // process startup and won't recognize a resource type scaffolded during
-  // this same server's lifetime.
-  const exampleKey = "example";
-  const exampleModelPath = modelFilePath(environment, schemaResourceType);
-  let exampleContainer: Record<string, unknown> = { [exampleKey]: selfCheck.sampleEntry };
-  if (fs.existsSync(exampleModelPath)) {
+  // Empty container, deliberately — see this function's doc comment. Real
+  // instances get added later, one at a time, through the UI form (which
+  // validates each new entry against the schema file committed above).
+  const modelPath = modelFilePath(environment, schemaResourceType);
+  let container: Record<string, unknown> = {};
+  if (fs.existsSync(modelPath)) {
     // Defensive only — shouldn't happen for a genuinely new resource type,
     // since schemaFilePath(schemaResourceType) not existing on disk yet is
     // exactly what makes this "new" in the first place.
-    const existing = JSON.parse(fs.readFileSync(exampleModelPath, "utf-8"));
-    exampleContainer = { ...(existing[containerKey] ?? {}), ...exampleContainer };
+    const existing = JSON.parse(fs.readFileSync(modelPath, "utf-8"));
+    container = existing[containerKey] ?? {};
   }
-  const exampleModelContent = JSON.stringify({ [containerKey]: exampleContainer }, null, 2) + "\n";
-  files.push({ filePath: exampleModelPath, content: exampleModelContent });
+  const modelContent = JSON.stringify({ [containerKey]: container }, null, 2) + "\n";
+  files.push({ filePath: modelPath, content: modelContent });
 
   const relativeFiles = files.map((f) => path.relative(REPO_ROOT, f.filePath).replace(/\\/g, "/"));
 
-  const branch = createChangeBranch(`chatbot/scaffold-${moduleName}`);
-
   const requestedBy = requesterId ? `\nRequested by: ${requesterId}` : "";
   const wiringNote = wiring
-    ? `\n\nAlso wires the module into environments/${environment}/main.tf and adds a starter ` +
-      `example entry ("${exampleKey}") to models/${environment}/${schemaResourceType}.json, so this ` +
-      `PR is apply-ready end-to-end.`
-    : `\n\nAdds a starter example entry ("${exampleKey}") to models/${environment}/${schemaResourceType}.json. ` +
+    ? `\n\nAlso wires the module into environments/${environment}/main.tf and creates ` +
+      `models/${environment}/${schemaResourceType}.json (empty — no instances yet). Create your first ` +
+      `instance afterward through the UI form, once this PR is merged.`
+    : `\n\nCreates models/${environment}/${schemaResourceType}.json (empty — no instances yet). ` +
       `environments/${environment}/main.tf doesn't exist yet, so wiring the module block in is still a manual step.`;
   const commitMessage =
-    `Scaffold module: ${providerResourceType}\n\n` +
+    `Import module: ${providerResourceType}\n\n` +
     `AI-scaffolded from the azurerm provider's own schema (terraform providers ` +
     `schema -json).${requestedBy}${wiringNote}`;
   writeMultipleAndCommit(files, commitMessage);
 
   pushBranch(branch);
 
-  const prTitle = `[AI-scaffolded module] Add ${moduleName} (${providerResourceType})`;
+  const prTitle = `[AI-imported module] Add ${moduleName} (${providerResourceType})`;
   const prBody =
-    `**AI-scaffolded Terraform module — requires Terraform-literate review.**\n\n` +
+    `**AI-imported Terraform module — requires Terraform-literate review.**\n\n` +
     `Generated from the azurerm provider's own machine-readable schema ` +
     `(\`terraform providers schema -json\`), not hand-written. Verify argument ` +
-    `correctness, defaults, and nested/dynamic block handling before merging.${wiringNote}${requestedBy}\n\n` +
+    `correctness, defaults, and nested/dynamic block handling before merging. Imports the module only — ` +
+    `no resource instance is created by this PR, so \`terraform plan\` has nothing new to evaluate.${wiringNote}${requestedBy}\n\n` +
     `Provider resource type: \`${providerResourceType}\`\n` +
     `Environment: \`${environment}\`\n` +
     `Module: \`modules/${moduleName}\`\n` +

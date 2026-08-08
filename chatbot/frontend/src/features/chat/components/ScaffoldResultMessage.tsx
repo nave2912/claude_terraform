@@ -9,7 +9,7 @@ function prNumberFromUrl(prUrl: string): number | null {
   return match ? Number(match[1]) : null;
 }
 
-/** Terminal result of a `/tfmodules` scaffold — mirrors PrResultCard's
+/** Terminal result of a `/terraform` module import — mirrors PrResultCard's
  * shape but for ScaffoldGenerateOutcome's distinct status union. */
 export function ScaffoldResultMessage({ message }: { message: Extract<ChatMessage, { kind: "scaffold-result" }> }) {
   const { outcome } = message;
@@ -36,9 +36,9 @@ export function ScaffoldResultMessage({ message }: { message: Extract<ChatMessag
             </a>
           </p>
           <p className="text-muted-foreground">
-            Branch <Badge variant="secondary">{outcome.branch}</Badge> — module + schema + wiring into{" "}
-            <span className="font-mono">environments/{outcome.environment}/main.tf</span> + a starter example
-            entry, apply-ready end to end.
+            Branch <Badge variant="secondary">{outcome.branch}</Badge> — module + schema wired into{" "}
+            <span className="font-mono">environments/{outcome.environment}/main.tf</span>, no instances yet. Once
+            merged, create your first one through the resource form.
           </p>
           {prNumber && <PrStatusIndicator prNumber={prNumber} branch={outcome.branch} />}
         </CardContent>

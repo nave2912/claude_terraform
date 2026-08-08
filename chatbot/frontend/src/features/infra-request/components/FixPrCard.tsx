@@ -12,11 +12,10 @@ interface Props {
 }
 
 /**
- * "Fix with AI" — diagnose-then-confirm, mirroring ScaffoldPlanMessage's
- * plan-then-confirm shape: the first click only diagnoses (read-only,
- * never touches git); the proposed fix is shown for review, and a
- * SEPARATE "Apply fix" click is what actually commits + pushes to the
- * PR's own branch. A needs_clarification result renders its question
+ * "Fix with AI" — diagnose-then-confirm: the first click only diagnoses
+ * (read-only, never touches git); the proposed fix is shown for review,
+ * and a SEPARATE "Apply fix" click is what actually commits + pushes to
+ * the PR's own branch. A needs_clarification result renders its question
  * with a reply box that re-runs diagnose with that answer — same
  * round-trip the /terraform clarification flow already uses, just
  * scoped to this card instead of the global chat transcript.
