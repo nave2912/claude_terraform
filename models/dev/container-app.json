@@ -7,7 +7,7 @@
       "container_registry_key": "chatbot",
       "container_name": "chatbot-backend",
       "image_name": "chatbot-backend",
-      "image_tag": "fcdaf568ca615c7007cbccd656d5edb74f22feb7",
+      "image_tag": "08031d95092eb9eaef45b7d44212fc36a54cb2f9",
       "cpu": 0.25,
       "memory": "0.5Gi",
       "target_port": 3000,
