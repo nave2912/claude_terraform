@@ -33,6 +33,7 @@ import { mergePullRequest, deleteRemoteBranch, getPrStatus, getCommitStatus } fr
 import { planModuleScaffold } from "../pipeline/scaffoldModulePlan.js";
 import { scaffoldModule } from "../pipeline/scaffoldModule.js";
 import { routeTerraformCommand } from "../pipeline/routeTerraformCommand.js";
+import { diagnosePrFailure, applyPrFix } from "../pipeline/fixExistingPr.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const API_KEY = process.env.API_KEY;
@@ -391,6 +392,49 @@ app.post("/terraform-route", requireApiKey, async (req: Request, res: Response) 
   }
 });
 
+/**
+ * Read-only: diagnoses why a specific PR's CI is failing (real error text,
+ * via getPrStatus's errorText) and asks Claude for a fix / a clarifying
+ * question / an escalation — never commits or pushes. Pass `userReply` on
+ * a follow-up call once a clarification question has been answered, same
+ * round-trip shape as /scaffold-module/plan's resourceType hint.
+ */
+app.post("/fix-pr/diagnose", requireApiKey, async (req: Request, res: Response) => {
+  const { prNumber, userReply } = req.body ?? {};
+  if (typeof prNumber !== "number" || !Number.isInteger(prNumber) || prNumber <= 0) {
+    res.status(400).json({ error: "body must be JSON: { prNumber: number, userReply?: string }" });
+    return;
+  }
+  try {
+    const outcome = await diagnosePrFailure(prNumber, typeof userReply === "string" ? userReply : undefined);
+    res.json(outcome);
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+/**
+ * Applies exactly the files the user already reviewed in the diagnose
+ * preview — commits + pushes to the SAME PR branch (never a new one, no
+ * new PR opened). Never re-runs Claude, so what's applied is guaranteed
+ * to match what was shown.
+ */
+app.post("/fix-pr/apply", requireApiKey, async (req: Request, res: Response) => {
+  const { prNumber, files } = req.body ?? {};
+  if (typeof prNumber !== "number" || !Number.isInteger(prNumber) || prNumber <= 0 || !Array.isArray(files)) {
+    res.status(400).json({
+      error: "body must be JSON: { prNumber: number, files: [{filePath, newContent}] }",
+    });
+    return;
+  }
+  try {
+    const outcome = await applyPrFix(prNumber, files);
+    res.json(outcome);
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`chatbot backend listening on http://localhost:${PORT}`);
   console.log(`  GET  /health            - no auth`);
@@ -406,4 +450,6 @@ app.listen(PORT, () => {
   console.log(`  POST /scaffold-module/plan     - preview a new module's mandatory/optional fields, requires x-api-key`);
   console.log(`  POST /scaffold-module/generate - scaffold an apply-ready module + schema + wiring and open a PR, requires x-api-key`);
   console.log(`  POST /terraform-route          - route a /terraform message to existing-type vs new-type, requires x-api-key`);
+  console.log(`  POST /fix-pr/diagnose          - diagnose a failing PR's CI and propose a fix, requires x-api-key`);
+  console.log(`  POST /fix-pr/apply             - apply a previously-diagnosed fix to the same PR branch, requires x-api-key`);
 });
