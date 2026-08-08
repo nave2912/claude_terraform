@@ -98,21 +98,22 @@ Call describe_fields with:
   non-Terraform-expert reader. Where no hint was given, describe the field
   from its name and type as best you can, staying accurate to the type
   shown (don't claim a list field is a single value, etc.).
-- for every plain "string" field (not a list/set/map/nested block), also
-  give an exampleValue: ONE concrete, real, valid literal string a working
-  example config could use for it. This matters most for fields Azure
-  restricts to a fixed set of accepted values (e.g. an "application_type"
-  or "account_tier"-style argument) — the Terraform provider's own schema
-  never exposes those enum constraints, only that the type is "string", so
-  without a real value here a generated placeholder like "placeholder" or
-  "example" will fail terraform plan/apply against the real Azure API. Use
-  your own knowledge of the azurerm provider and the underlying Azure
-  service to pick a value that would actually be accepted. Omit
-  exampleValue only for fields that are genuinely free-text with no
-  real-world constraint to get right (e.g. an arbitrary display name) or
-  that reference another resource you have no way to know (e.g. an
-  existing resource's ID) — a generic placeholder is fine there since nothing
-  you could invent would be more valid than anything else.`;
+- an exampleValue for EVERY field listed above — this key is mandatory on
+  every entry, never omit it. For a plain "string" field, give ONE
+  concrete, real, valid literal value a working example config could use.
+  This matters most for fields Azure restricts to a fixed set of accepted
+  values (e.g. an "application_type" or "account_tier"-style argument) —
+  the Terraform provider's own schema never exposes those enum
+  constraints, only that the type is "string", so a lazy generic
+  placeholder like "placeholder" or "example" will fail terraform
+  plan/apply against the real Azure API. Use your own knowledge of the
+  azurerm provider and the underlying Azure service to pick a value that
+  would actually be accepted. Use exactly "" (empty string) — never a
+  fabricated-looking placeholder — for: list/set/map/nested-block fields
+  (they aren't a single literal), fields that are genuinely free-text with
+  no real-world constraint to get right (e.g. an arbitrary display name),
+  and fields that reference another resource you have no way to know
+  (e.g. an existing resource's ID).`;
 }
 
 export const SUMMARIZE_TOOLS = [
@@ -129,14 +130,14 @@ export const SUMMARIZE_TOOLS = [
           type: "array",
           items: {
             type: "object",
-            required: ["name", "description"],
+            required: ["name", "description", "exampleValue"],
             properties: {
               name: { type: "string" },
               description: { type: "string" },
               exampleValue: {
                 type: "string",
                 description:
-                  "A concrete, real, valid literal value for this field (string fields only) — see the exampleValue instructions above. Omit for fields with no meaningful real-world constraint.",
+                  "Mandatory. A concrete, real, valid literal value for a plain string field (see the exampleValue instructions above), or exactly \"\" for list/set/map/nested fields and fields with no meaningful real-world value to suggest. Never omit this key.",
               },
             },
           },
