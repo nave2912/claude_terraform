@@ -10,6 +10,7 @@ import type {
   ScaffoldPlanOutcome,
   SchemaInfoResponse,
   StructuredProposalInput,
+  TerraformRouteOutcome,
 } from "@/types/schema";
 
 /**
@@ -71,9 +72,20 @@ export const infraRequestApi = {
       body: JSON.stringify({ message, resourceType }),
     }),
 
-  scaffoldModuleGenerate: (resourceType: string, fieldDescriptions?: Record<string, string>, requesterId?: string) =>
+  scaffoldModuleGenerate: (
+    resourceType: string,
+    environment: string,
+    fieldDescriptions?: Record<string, string>,
+    requesterId?: string
+  ) =>
     requestJson<ScaffoldGenerateOutcome>("/api/backend/scaffold-module/generate", {
       method: "POST",
-      body: JSON.stringify({ resourceType, fieldDescriptions, requesterId }),
+      body: JSON.stringify({ resourceType, environment, fieldDescriptions, requesterId }),
+    }),
+
+  terraformRoute: (message: string) =>
+    requestJson<TerraformRouteOutcome>("/api/backend/terraform-route", {
+      method: "POST",
+      body: JSON.stringify({ message }),
     }),
 };

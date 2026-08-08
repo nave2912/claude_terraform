@@ -8,6 +8,7 @@ import {
   returnToMain,
 } from "../gitprovider/index.js";
 import { ensureEnvironmentWiring } from "../moduleScaffold/generators/environmentWiringGenerator.js";
+import { listAvailableEnvironments } from "../config/paths.js";
 import type { ProposeOutcome } from "./proposeInfrastructureChange.js";
 
 /**
@@ -28,9 +29,7 @@ export async function proposeStructuredChange(
   fields: Record<string, unknown>,
   requesterId?: string
 ): Promise<ProposeOutcome> {
-  const allowedEnvironments = (process.env.ALLOWED_ENVIRONMENTS ?? "dev")
-    .split(",")
-    .map((e) => e.trim());
+  const allowedEnvironments = listAvailableEnvironments();
 
   const validation = validateEntry(resourceType, fields);
   if (!validation.valid) {

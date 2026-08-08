@@ -36,8 +36,9 @@ export function ScaffoldResultMessage({ message }: { message: Extract<ChatMessag
             </a>
           </p>
           <p className="text-muted-foreground">
-            Branch <Badge variant="secondary">{outcome.branch}</Badge> — this PR only adds the module + schema;
-            wiring it into an environment&apos;s main.tf and adding example entries are separate manual steps.
+            Branch <Badge variant="secondary">{outcome.branch}</Badge> — module + schema + wiring into{" "}
+            <span className="font-mono">environments/{outcome.environment}/main.tf</span> + a starter example
+            entry, apply-ready end to end.
           </p>
           {prNumber && <PrStatusIndicator prNumber={prNumber} branch={outcome.branch} />}
         </CardContent>
@@ -70,7 +71,9 @@ export function ScaffoldResultMessage({ message }: { message: Extract<ChatMessag
       ? `${outcome.resourceType}: ${outcome.reason}`
       : outcome.status === "unknown_resource_type"
         ? `"${outcome.resourceType}" isn't a known azurerm resource type.`
-        : outcome.errors.join(", ");
+        : outcome.status === "environment_blocked"
+          ? `"${outcome.environment}" isn't an allowed environment (allowed: ${outcome.allowed.join(", ")}).`
+          : outcome.errors.join(", ");
 
   return (
     <Card className="max-w-lg border-destructive/40">

@@ -148,11 +148,13 @@ export type ScaffoldPlanOutcome =
 export type ScaffoldGenerateOutcome =
   | { status: "denied"; resourceType: string; reason: string }
   | { status: "unknown_resource_type"; resourceType: string }
+  | { status: "environment_blocked"; environment: string; allowed: string[] }
   | { status: "self_check_failed"; errors: string[] }
   | {
       status: "pr_opened";
       providerResourceType: string;
       moduleName: string;
+      environment: string;
       branch: string;
       prUrl: string;
       filesChanged: string[];
@@ -161,7 +163,16 @@ export type ScaffoldGenerateOutcome =
       status: "pushed_no_pr";
       providerResourceType: string;
       moduleName: string;
+      environment: string;
       branch: string;
       compareUrl: string | null;
       filesChanged: string[];
     };
+
+/** Outcome of routing a `/terraform <request>` chat command — see
+ * chatbot/backend/src/pipeline/routeTerraformCommand.ts. */
+export type TerraformRouteOutcome =
+  | { status: "clarification_needed"; question: string }
+  | { status: "no_action"; message: string }
+  | { status: "existing_type"; resourceType: string; providerResourceType: string }
+  | { status: "new_type"; providerResourceType: string };
