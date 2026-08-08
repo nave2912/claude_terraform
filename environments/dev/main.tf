@@ -14,7 +14,6 @@ locals {
   log_analytics_workspace_model   = jsondecode(file("${path.module}/../../models/${var.environment}/log-analytics-workspace.json"))
   container_app_environment_model = jsondecode(file("${path.module}/../../models/${var.environment}/container-app-environment.json"))
   container_app_model             = jsondecode(file("${path.module}/../../models/${var.environment}/container-app.json"))
-  static_web_app_model            = jsondecode(file("${path.module}/../../models/${var.environment}/static-web-app.json"))
 
   # Other models reference a resource group by its real Azure name
   # (resource_group_name), not by resource-group.json's logical key -- this
@@ -63,7 +62,9 @@ module "virtual_network" {
 # --- Chatbot hosting infra ---
 # JSON-model-driven like the resources above (models/dev/key-vault.json,
 # container-registry.json, log-analytics-workspace.json,
-# container-app-environment.json, container-app.json, static-web-app.json),
+# container-app-environment.json, container-app.json — both the backend
+# and the frontend are entries in the latter; the frontend is the sole
+# public entry point, the backend is internal-only),
 # EXCEPT for the two real secrets below (anthropic_api_key/github_token),
 # which have no business living in a committed JSON model — see
 # models/schema/container-app.schema.json's top-level description.
@@ -110,16 +111,6 @@ resource "azurerm_key_vault_secret" "chatbot_anthropic_api_key" {
   lifecycle {
     ignore_changes = [value]
   }
-}
-
-# The resource above only ever reads back the version *it* created -- an
-# out-of-band rotation (az keyvault secret set / Portal) creates a new
-# version the resource's own Read never notices. This data source has no
-# such pinning: it looks up "name" fresh on every plan/apply and always
-# resolves to whatever is currently the latest version in the vault.
-data "azurerm_key_vault_secret" "chatbot_anthropic_api_key_current" {
-  name         = azurerm_key_vault_secret.chatbot_anthropic_api_key.name
-  key_vault_id = module.key_vault["chatbot"].id
 }
 
 resource "azurerm_key_vault_secret" "chatbot_github_token" {
@@ -198,11 +189,11 @@ resource "azurerm_role_assignment" "container_app_acr_pull" {
 }
 
 resource "azurerm_role_assignment" "container_app_kv_secrets_user" {
-  # Only the "backend" entry needs Key Vault access today (it's the only
-  # one with Key-Vault-backed secrets, wired in below) — scoped by key so
-  # this doesn't grant vault access to a future container app that has no
+  # "backend" and "frontend" both read the chatbot_anthropic_api_key Key
+  # Vault secret (see the secrets block below) — scoped by key so this
+  # doesn't grant vault access to a future container app that has no
   # secrets at all.
-  for_each = { for k, v in local.container_app_model.container_apps : k => v if k == "backend" }
+  for_each = { for k, v in local.container_app_model.container_apps : k => v if contains(["backend", "frontend"], k) }
 
   scope                = module.key_vault["chatbot"].id
   role_definition_name = "Key Vault Secrets User"
@@ -241,8 +232,8 @@ module "container_app" {
   registry_identity_id = azurerm_user_assigned_identity.container_app[each.key].id
 
   # Key-Vault-backed secrets aren't part of the model (see schema
-  # description) — the "backend" entry's three secrets are hand-wired here
-  # by key, same pattern as the role assignment above.
+  # description) — the "backend" and "frontend" entries' secrets are
+  # hand-wired here by key, same pattern as the role assignment above.
   # versionless_id, not id — pinning a specific secret version here means
   # any future secret rotation (a new azurerm_key_vault_secret version)
   # would require a container app config change too, and worse, produces
@@ -264,6 +255,21 @@ module "container_app" {
       name  = "backend-api-key"
       value = var.chatbot_backend_api_key
     },
+    ] : each.key == "frontend" ? [
+    {
+      # Same underlying Key Vault secret the backend reads — the frontend
+      # authenticates to it via its own managed identity (granted above),
+      # not by sharing the backend's identity.
+      name                = "anthropic-api-key"
+      key_vault_secret_id = azurerm_key_vault_secret.chatbot_anthropic_api_key.versionless_id
+      identity            = azurerm_user_assigned_identity.container_app[each.key].id
+    },
+    {
+      # Same value the backend's requireApiKey middleware checks against —
+      # this is the shared secret that lets the frontend call the backend.
+      name  = "backend-api-key"
+      value = var.chatbot_backend_api_key
+    },
   ] : []
 
   container_name = each.value.container_name
@@ -273,6 +279,10 @@ module "container_app" {
   target_port    = each.value.target_port
   min_replicas   = try(each.value.min_replicas, 0)
   max_replicas   = try(each.value.max_replicas, 1)
+  # Backend is internal-only: reachable from other apps in this Container
+  # Apps Environment (i.e. the frontend, below) via internal DNS, never
+  # from the public internet — not just an app-layer x-api-key check.
+  external_enabled = try(each.value.external_enabled, true)
 
   env = concat(
     [for e in try(each.value.env, []) : { name = e.name, value = e.value }],
@@ -280,6 +290,19 @@ module "container_app" {
       { name = "ANTHROPIC_API_KEY", secret_name = "anthropic-api-key" },
       { name = "GH_TOKEN", secret_name = "github-token" },
       { name = "API_KEY", secret_name = "backend-api-key" },
+      ] : each.key == "frontend" ? [
+      { name = "ANTHROPIC_API_KEY", secret_name = "anthropic-api-key" },
+      { name = "BACKEND_API_KEY", secret_name = "backend-api-key" },
+      # Internal hostname, not the (now nonexistent) public FQDN — backend
+      # is external_enabled = false, only reachable from within this
+      # environment via <app-name>.internal.<environment-default-domain>.
+      # Reads the raw model value (not module.container_app["backend"].name)
+      # deliberately -- referencing another for_each instance of THIS SAME
+      # module block from within its own body is a self-reference Terraform
+      # rejects; local.container_app_model.container_apps["backend"].name is
+      # the identical string (the module's own name output is exactly
+      # var.name passed through), without the cycle.
+      { name = "BACKEND_BASE_URL", value = "https://${local.container_app_model.container_apps["backend"].name}.internal.${module.container_app_environment[each.value.container_app_environment_key].default_domain}" },
     ] : []
   )
 
@@ -288,37 +311,4 @@ module "container_app" {
   depends_on = [
     time_sleep.wait_for_container_app_rbac,
   ]
-}
-
-# Static Web App: Free tier, hosts the Next.js frontend. Terraform only
-# provisions the shell + deployment token; publishing the built frontend
-# still needs a separate build/deploy step (SWA CLI or GitHub Actions).
-module "static_web_app" {
-  source = "../../modules/static_web_app"
-
-  for_each = local.static_web_app_model.static_web_apps
-
-  name                = each.value.name
-  location            = each.value.location
-  resource_group_name = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].name
-  sku_tier            = try(each.value.sku_tier, "Free")
-  sku_size            = try(each.value.sku_size, "Free")
-  tags                = each.value.tags
-
-  # Server-side env vars for the frontend's Route Handlers -- not part of
-  # the model (same reasoning as container_app's Key-Vault-backed secrets):
-  # only the "chatbot" entry has a backend to talk to.
-  #
-  # ANTHROPIC_API_KEY reads the *current* Key Vault secret value via the
-  # data source above, not var.chatbot_anthropic_api_key directly -- that
-  # variable is allowed to be blank on CI runs that don't resolve the real
-  # secret (the KV secret resource itself is protected by
-  # lifecycle.ignore_changes for exactly this reason). Sourcing from var.*
-  # here bypassed that protection and
-  # blanked this app setting the moment a blank-var apply ran.
-  app_settings = each.key == "chatbot" ? {
-    BACKEND_BASE_URL  = "https://${module.container_app["backend"].latest_revision_fqdn}"
-    BACKEND_API_KEY   = var.chatbot_backend_api_key
-    ANTHROPIC_API_KEY = data.azurerm_key_vault_secret.chatbot_anthropic_api_key_current.value
-  } : {}
 }

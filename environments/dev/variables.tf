@@ -22,8 +22,9 @@ variable "default_lock_level" {
 # --- Chatbot hosting infra ---
 # Everything else (names, SKUs, sizes, tags) now comes from
 # models/dev/{key-vault,container-registry,log-analytics-workspace,
-# container-app-environment,container-app,static-web-app}.json — these two
-# are the only chatbot-hosting inputs left as variables, since real secret
+# container-app-environment,container-app}.json (both the frontend and
+# backend Container Apps are entries in the latter) — these two are the
+# only chatbot-hosting inputs left as variables, since real secret
 # material can't live in a committed JSON file.
 
 variable "chatbot_anthropic_api_key" {

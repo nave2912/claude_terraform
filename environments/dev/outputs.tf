@@ -33,19 +33,8 @@ output "chatbot_container_registry_login_server" {
 }
 
 output "chatbot_container_app_fqdn" {
-  description = "Public FQDN of the chatbot backend Container App."
-  value       = module.container_app["backend"].latest_revision_fqdn
-}
-
-output "chatbot_static_web_app_default_host_name" {
-  description = "Public hostname of the chatbot frontend Static Web App."
-  value       = module.static_web_app["chatbot"].default_host_name
-}
-
-output "chatbot_static_web_app_api_key" {
-  description = "Deployment token for the Static Web App — used by the SWA CLI/GitHub Actions to publish frontend builds. Sensitive."
-  value       = module.static_web_app["chatbot"].api_key
-  sensitive   = true
+  description = "Public FQDN of the chatbot frontend Container App — this is the chatbot's public URL. The backend Container App is internal-only (external_enabled = false), reachable only from within the Container Apps Environment, so it has no public FQDN."
+  value       = module.container_app["frontend"].latest_revision_fqdn
 }
 
 output "chatbot_backend_api_key" {
