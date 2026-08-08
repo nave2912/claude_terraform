@@ -82,23 +82,25 @@ export function ensureEnvironmentWiring(
       continue;
     }
     // checkov statically analyzes THIS call site's expression, not the
-    // module's own variable default several files away — a security-
-    // relevant field wired as `try(each.value.field, null)` still reads
-    // as "unresolved/insecure" to it even when that module's own variable
-    // defaults to a secure value, because it never looks past the module
-    // boundary to resolve what null ultimately becomes. Falling back to
-    // the field's own JSON-Schema `default` (set only for the same small
-    // set of security-relevant fields hclGenerator.ts bakes into
-    // variables.tf — see jsonSchemaGenerator.ts's jsonSchemaDefault) here
-    // too keeps checkov's view and the module's real behavior consistent.
-    // Regression: a scaffolded azurerm_redis_cache still failed checkov
-    // (public network access, TLS version, SSL-only) on import alone even
-    // after the module's own variables.tf defaults were fixed, until the
-    // call site itself stopped falling back to a bare null.
+    // module's own variable default several files away — confirmed
+    // empirically (local checkov 3.3.9, matching CI's pinned version)
+    // that it never resolves ANY function-call expression, including
+    // `try(a, b)` even when `b` is a plain literal; it only traces a
+    // direct `var.x` reference back to that SAME module's own `default`
+    // declaration. So a security-relevant field (one with a JSON-Schema
+    // `default` — see jsonSchemaGenerator.ts's jsonSchemaDefault) is left
+    // OUT of the call site entirely: no argument line at all means
+    // Terraform applies the module's own variable default unconditionally,
+    // which checkov can actually see. The real, accepted trade-off: an
+    // instance's JSON model entry cannot override this specific field —
+    // security-relevant settings become a fixed module-level floor, not a
+    // per-instance opt-out. Regression: a scaffolded azurerm_redis_cache
+    // still failed checkov (public network access, TLS version, SSL-only)
+    // on import alone through two prior attempts (module-only default,
+    // then call-site try() fallback) until this.
     const fieldSchema = properties[field] as { default?: unknown } | undefined;
-    const fallback =
-      fieldSchema && "default" in fieldSchema ? JSON.stringify(fieldSchema.default) : "null";
-    lines.push(`  ${field} = try(each.value.${field}, ${fallback})`);
+    if (fieldSchema && "default" in fieldSchema) continue;
+    lines.push(`  ${field} = try(each.value.${field}, null)`);
   }
   if ("tags" in properties) {
     lines.push(`  tags = each.value.tags`);
