@@ -113,7 +113,24 @@ Call describe_fields with:
   (they aren't a single literal), fields that are genuinely free-text with
   no real-world constraint to get right (e.g. an arbitrary display name),
   and fields that reference another resource you have no way to know
-  (e.g. an existing resource's ID).`;
+  (e.g. an existing resource's ID).
+- a secureDefault for every OPTIONAL plain "string" or "bool" field listed
+  above whose value controls a real security-relevant behavior — network
+  exposure (e.g. public network access, firewall/network ACLs), transport
+  encryption (minimum TLS version, SSL/plaintext-only access), or
+  authentication requirements. Give the value that represents the secure/
+  recommended choice, in the exact literal format the provider expects
+  (same formatting rules as exampleValue — e.g. a real enum string, or
+  "true"/"false" for a bool field). This becomes the field's own DEFAULT
+  in the generated module, so every instance is secure unless a caller
+  deliberately overrides it — this repo's static-analysis policy scanner
+  (checkov) evaluates the module's generated code directly, independent of
+  whether any instance exists yet, so an insecure default fails CI even
+  with zero instances. Use exactly "" for every field with no security
+  implication (the overwhelming majority of optional fields) — do not
+  invent an opinionated default for things like naming, sizing, or
+  business-logic fields; only genuinely security-relevant fields should
+  ever get a non-empty secureDefault.`;
 }
 
 export const SUMMARIZE_TOOLS = [
@@ -130,7 +147,7 @@ export const SUMMARIZE_TOOLS = [
           type: "array",
           items: {
             type: "object",
-            required: ["name", "description", "exampleValue"],
+            required: ["name", "description", "exampleValue", "secureDefault"],
             properties: {
               name: { type: "string" },
               description: { type: "string" },
@@ -138,6 +155,11 @@ export const SUMMARIZE_TOOLS = [
                 type: "string",
                 description:
                   "Mandatory. A concrete, real, valid literal value for a plain string field (see the exampleValue instructions above), or exactly \"\" for list/set/map/nested fields and fields with no meaningful real-world value to suggest. Never omit this key.",
+              },
+              secureDefault: {
+                type: "string",
+                description:
+                  "Mandatory. The secure/recommended literal value for a security-relevant OPTIONAL string or bool field (see the secureDefault instructions above), or exactly \"\" for every other field — which is most of them. Never omit this key.",
               },
             },
           },

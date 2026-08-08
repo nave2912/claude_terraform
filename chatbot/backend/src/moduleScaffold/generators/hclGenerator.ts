@@ -47,11 +47,32 @@ const STANDARD_VARIABLES: Record<string, string> = {
 
 const STANDARD_FIELD_ORDER = ["name", "location", "resource_group_name", "tags"];
 
+/**
+ * A security-relevant optional field (network exposure, TLS/SSL,
+ * authentication — see planPrompt.ts's secureDefault instructions) gets
+ * its OWN default baked into the module, rather than the usual bare
+ * `null`. This matters even with zero instances: checkov statically
+ * analyzes a module's generated code directly, independent of how many
+ * times (if any) it's instantiated — an insecure default fails CI on
+ * import alone. Only "string" and "bool" are supported; other types never
+ * get a secureDefault from planIntent.ts in the first place.
+ */
+function formatSecureDefault(field: FieldSpec): string | null {
+  if (!field.secureDefault) return null;
+  if (field.hclType === "bool") {
+    return field.secureDefault === "true" || field.secureDefault === "false" ? field.secureDefault : null;
+  }
+  if (field.hclType === "string") {
+    return JSON.stringify(field.secureDefault);
+  }
+  return null;
+}
+
 function genericVariableBlock(field: FieldSpec): string {
   const descriptionLine = field.description
     ? `  description = ${JSON.stringify(field.description)}\n`
     : "";
-  const defaultLine = field.required ? "" : "  default     = null\n";
+  const defaultLine = field.required ? "" : `  default     = ${formatSecureDefault(field) ?? "null"}\n`;
   return `variable "${field.name}" {\n${descriptionLine}  type        = ${field.hclType}\n${defaultLine}}`;
 }
 
