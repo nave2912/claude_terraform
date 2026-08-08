@@ -194,6 +194,10 @@ export interface PrCheck {
   name: string;
   state: "success" | "failure" | "pending";
   detailsUrl?: string;
+  /** Only populated for state === "failure" — a bounded excerpt of that
+   * check's own failed-step log, so the chat UI can show the real error
+   * instead of just a red X. See attachErrorText below. */
+  errorText?: string;
 }
 
 export interface PrStatusResult {
@@ -290,6 +294,63 @@ function extractPlanSummary(planCheck: PrCheck | undefined): string | null {
   }
 }
 
+const MAX_ERROR_TEXT_CHARS = 4000;
+
+/**
+ * `gh run view <runId> --log-failed` dumps every failed step across the
+ * WHOLE workflow run, each line prefixed "<jobName>\t<stepName>\t<ts>
+ * <text>" — one call per run (not per check) covers every failing check
+ * that happens to share that run, which validate/plan/apply always do
+ * here (one workflow, several jobs). Cached per runId so a PR with
+ * multiple failing checks doesn't re-fetch the same log once per check.
+ */
+function fetchFailedStepLog(runId: string): string | null {
+  try {
+    return execFileSync("gh", ["run", "view", runId, "--log-failed"], {
+      cwd: REPO_ROOT,
+      encoding: "utf-8",
+      maxBuffer: 10 * 1024 * 1024,
+    })
+      // See extractPlanSummary's identical comment — gh emits ANSI color
+      // codes as a literal caret+bracket pair, not the real ESC byte.
+      // eslint-disable-next-line no-control-regex
+      .replace(/\x1b\[[0-9;]*m/g, "")
+      .replace(/\^\[\[[0-9;]*m/g, "");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Mutates `checks` in place, adding `errorText` to every failing one —
+ * scoped to just that check's own job (filtering `--log-failed`'s
+ * job-name-prefixed lines), so a PR failing on both `validate` and `plan`
+ * gets two distinct, non-cross-contaminated excerpts rather than one
+ * blob. Feeds a chat UI and (later) a Claude prompt, not a full log
+ * viewer, so output is capped rather than exhaustive.
+ */
+function attachErrorText(checks: PrCheck[]): void {
+  const logCache = new Map<string, string | null>();
+  for (const check of checks) {
+    if (check.state !== "failure" || !check.detailsUrl) continue;
+    const runIdMatch = check.detailsUrl.match(/\/runs\/(\d+)\//);
+    if (!runIdMatch) continue;
+    const runId = runIdMatch[1];
+    if (!logCache.has(runId)) logCache.set(runId, fetchFailedStepLog(runId));
+    const fullLog = logCache.get(runId);
+    if (!fullLog) continue;
+
+    const jobLines = fullLog
+      .split("\n")
+      .filter((line) => line.startsWith(`${check.name}\t`))
+      .map((line) => line.split("\t").slice(2).join("\t").replace(/^\S+Z\s*/, ""));
+    if (jobLines.length === 0) continue;
+
+    const joined = jobLines.join("\n");
+    check.errorText = joined.length > MAX_ERROR_TEXT_CHARS ? joined.slice(-MAX_ERROR_TEXT_CHARS) : joined;
+  }
+}
+
 /**
  * Reads the PR's own CI status (the pull_request-triggered validate/plan
  * workflow) via `gh pr view --json statusCheckRollup` — this is what
@@ -311,6 +372,9 @@ export function getPrStatus(prNumber: number): PrStatusResult {
     let planSummary: string | null | undefined;
     if (overall === "success" || overall === "failure") {
       planSummary = extractPlanSummary(checks.find((c) => c.name === "plan"));
+    }
+    if (overall === "failure") {
+      attachErrorText(checks);
     }
 
     return { overall, checks, planSummary };
@@ -336,7 +400,11 @@ export function getCommitStatus(sha: string): PrStatusResult {
     const checks = (parsed.check_runs ?? [])
       .map(normalizeCheck)
       .filter((c): c is PrCheck => c !== null);
-    return { overall: overallFrom(checks), checks };
+    const overall = overallFrom(checks);
+    if (overall === "failure") {
+      attachErrorText(checks);
+    }
+    return { overall, checks };
   } catch (err) {
     return { overall: "none", checks: [], error: err instanceof Error ? err.message : String(err) };
   }
