@@ -28,7 +28,7 @@ import fs from "node:fs";
 import { proposeStructuredChange } from "../pipeline/proposeStructuredChange.js";
 import { validateEntry, listResourceTypes, getResourceType } from "../validators/index.js";
 import { mergeEntry } from "../modelwriter/index.js";
-import { modelFilePath, MODULES_DIR } from "../config/paths.js";
+import { modelFilePath, MODULES_DIR, listAvailableEnvironments } from "../config/paths.js";
 import { mergePullRequest, deleteRemoteBranch, getPrStatus, getCommitStatus } from "../gitprovider/index.js";
 import { planModuleScaffold } from "../pipeline/scaffoldModulePlan.js";
 import { scaffoldModule } from "../pipeline/scaffoldModule.js";
@@ -78,13 +78,12 @@ app.get("/health", (_req, res) => {
  * Drives the frontend's fixed-schema form: every resource type's schema,
  * straight from models/schema/*.schema.json, so the form's fields/enums/
  * required-list stay in lockstep with what the backend actually validates
- * against. Also returns ALLOWED_ENVIRONMENTS so the form only offers
- * environments this server is actually permitted to open PRs against.
+ * against. Also returns every environment this repo actually has (see
+ * listAvailableEnvironments), so the form only ever offers environments
+ * that really exist.
  */
 app.get("/schema-info", requireApiKey, (_req, res) => {
-  const allowedEnvironments = (process.env.ALLOWED_ENVIRONMENTS ?? "dev")
-    .split(",")
-    .map((e) => e.trim());
+  const allowedEnvironments = listAvailableEnvironments();
   res.json({
     allowedEnvironments,
     resourceTypes: listResourceTypes().map((r) => ({

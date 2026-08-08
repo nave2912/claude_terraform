@@ -43,9 +43,11 @@ Two tools, forced via Claude's tool-use:
   the CLI/API layer is responsible for accumulating and replaying history.
 - No environment-based access control in the prompt itself (e.g. nothing
   stops Claude from proposing a `prod` change if asked) — this is
-  deliberate: the `ALLOWED_ENVIRONMENTS` gate belongs in the API layer
-  (Phase 3+), not the prompt, since prompts are not a reliable enforcement
-  boundary. See `chatbot-architecture.md`'s missing-practices list.
+  deliberate: the environment allowlist gate (derived from which
+  `models/<env>/` directories exist on disk, see `config/paths.ts`'s
+  `listAvailableEnvironments`) belongs in the API layer (Phase 3+), not the
+  prompt, since prompts are not a reliable enforcement boundary. See
+  `chatbot-architecture.md`'s missing-practices list.
 - No rate limiting or cost controls on the Anthropic call — flagged in
   `ARCHITECTURE.md`-style missing-practices list in the main planning doc.
 

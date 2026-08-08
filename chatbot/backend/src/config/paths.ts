@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -19,4 +20,21 @@ export function modelFilePath(environment: string, resourceType: string): string
 
 export function schemaFilePath(resourceType: string): string {
   return path.join(SCHEMA_DIR, `${resourceType}.schema.json`);
+}
+
+/**
+ * Every environment this chatbot instance can propose changes against —
+ * derived from the models/<env>/ subdirectories that actually exist on
+ * disk, excluding models/schema/ (JSON Schema contracts, not
+ * per-environment instance data). Not a separately-maintained allowlist:
+ * adding environments/<newenv>/ + models/<newenv>/*.json to the repo makes
+ * that environment selectable here with zero config changes, matching the
+ * rest of this repo's "JSON models are the source of truth" design.
+ */
+export function listAvailableEnvironments(): string[] {
+  return fs
+    .readdirSync(MODELS_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name !== "schema")
+    .map((entry) => entry.name)
+    .sort();
 }

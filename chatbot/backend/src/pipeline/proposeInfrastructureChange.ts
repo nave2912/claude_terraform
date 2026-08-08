@@ -8,6 +8,7 @@ import {
   returnToMain,
 } from "../gitprovider/index.js";
 import { ensureEnvironmentWiring } from "../moduleScaffold/generators/environmentWiringGenerator.js";
+import { listAvailableEnvironments } from "../config/paths.js";
 
 /**
  * The full Phase 3 pipeline (parse -> validate -> merge -> branch -> commit
@@ -17,8 +18,9 @@ import { ensureEnvironmentWiring } from "../moduleScaffold/generators/environmen
  * the result (CLI prints it, the API returns it as JSON).
  *
  * Same safety properties as always: never touches main directly, never
- * merges/applies anything, blocked from proposing to any environment not
- * in ALLOWED_ENVIRONMENTS.
+ * merges/applies anything, blocked from proposing to any environment that
+ * doesn't have a models/<env>/ directory on disk (see
+ * listAvailableEnvironments).
  */
 export type ProposeOutcome =
   | { status: "clarification_needed"; question: string }
@@ -49,9 +51,7 @@ export async function proposeInfrastructureChange(
   message: string,
   requesterId?: string
 ): Promise<ProposeOutcome> {
-  const allowedEnvironments = (process.env.ALLOWED_ENVIRONMENTS ?? "dev")
-    .split(",")
-    .map((e) => e.trim());
+  const allowedEnvironments = listAvailableEnvironments();
 
   const result = await parseIntent([{ role: "user", content: message }]);
 

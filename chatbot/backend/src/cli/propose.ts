@@ -8,9 +8,9 @@
  * never merges/applies anything — that's still entirely up to a human via
  * the GitHub PR UI, same as if they'd done every step by hand.
  *
- * Environment allowlist: only environments in ALLOWED_ENVIRONMENTS (default
- * "dev") are proposable, per the phased rollout plan. Set
- * ALLOWED_ENVIRONMENTS=dev,qa to widen it.
+ * Environment allowlist: only environments with a models/<env>/ directory
+ * on disk are proposable (see config/paths.ts's listAvailableEnvironments)
+ * — add models/<newenv>/ to widen it, no config needed.
  *
  * Usage:
  *   npm run propose -- "<your request>"
@@ -51,8 +51,8 @@ async function main() {
       return;
     case "environment_blocked":
       console.error(
-        `[blocked] Environment "${outcome.environment}" is not in ALLOWED_ENVIRONMENTS=${outcome.allowed.join(",")}. ` +
-          `This is a deliberate safety gate, not a bug — widen ALLOWED_ENVIRONMENTS only when you're ready to let the chatbot propose changes to that environment.`
+        `[blocked] Environment "${outcome.environment}" has no models/${outcome.environment}/ directory ` +
+          `(available: ${outcome.allowed.join(", ")}). Add one to make this environment proposable.`
       );
       process.exitCode = 1;
       return;
