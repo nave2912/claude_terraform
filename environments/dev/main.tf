@@ -341,34 +341,32 @@ module "application_insights" {
 }
 
 locals {
-  machine_learning_workspace_model = jsondecode(file("${path.module}/../../models/${var.environment}/machine-learning-workspace.json"))
+  function_app_model = jsondecode(file("${path.module}/../../models/${var.environment}/function-app.json"))
 }
 
-module "machine_learning_workspace" {
-  source = "../../modules/machine_learning_workspace"
+module "function_app" {
+  source = "../../modules/function_app"
 
-  for_each = local.machine_learning_workspace_model.machine_learning_workspaces
+  for_each = local.function_app_model.function_apps
 
-  name                           = each.value.name
-  location                       = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].location
-  resource_group_name            = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].name
-  application_insights_id        = each.value.application_insights_id
-  key_vault_id                   = each.value.key_vault_id
-  storage_account_id             = each.value.storage_account_id
-  identity                       = each.value.identity
-  container_registry_id          = try(each.value.container_registry_id, null)
-  description                    = try(each.value.description, null)
-  friendly_name                  = try(each.value.friendly_name, null)
-  high_business_impact           = try(each.value.high_business_impact, null)
-  image_build_compute_name       = try(each.value.image_build_compute_name, null)
-  kind                           = try(each.value.kind, null)
-  primary_user_assigned_identity = try(each.value.primary_user_assigned_identity, null)
-  sku_name                       = try(each.value.sku_name, null)
-  v1_legacy_mode_enabled         = try(each.value.v1_legacy_mode_enabled, null)
-  encryption                     = try(each.value.encryption, null)
-  feature_store                  = try(each.value.feature_store, null)
-  managed_network                = try(each.value.managed_network, null)
-  serverless_compute             = try(each.value.serverless_compute, null)
-  timeouts                       = try(each.value.timeouts, null)
-  tags                           = each.value.tags
+  name                            = each.value.name
+  location                        = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].location
+  resource_group_name             = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].name
+  app_service_plan_id             = each.value.app_service_plan_id
+  storage_account_access_key      = each.value.storage_account_access_key
+  storage_account_name            = each.value.storage_account_name
+  app_settings                    = try(each.value.app_settings, null)
+  daily_memory_time_quota         = try(each.value.daily_memory_time_quota, null)
+  enable_builtin_logging          = try(each.value.enable_builtin_logging, null)
+  enabled                         = try(each.value.enabled, null)
+  key_vault_reference_identity_id = try(each.value.key_vault_reference_identity_id, null)
+  os_type                         = try(each.value.os_type, null)
+  version                         = try(each.value.version, null)
+  auth_settings                   = try(each.value.auth_settings, null)
+  connection_string               = try(each.value.connection_string, null)
+  identity                        = try(each.value.identity, null)
+  site_config                     = try(each.value.site_config, null)
+  source_control                  = try(each.value.source_control, null)
+  timeouts                        = try(each.value.timeouts, null)
+  tags                            = each.value.tags
 }
