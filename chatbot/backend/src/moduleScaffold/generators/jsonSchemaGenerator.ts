@@ -58,6 +58,24 @@ function hclTypeToJsonSchema(hclType: string): Record<string, unknown> {
   return { type: "object", additionalProperties: true };
 }
 
+/** JSON Schema's own `default` keyword — a real, typed JSON value, not the
+ * raw HCL-literal string secureDefault carries (which is "false"/"true"
+ * for a bool field, a bare unquoted string for a string field). Only
+ * "string"/"boolean" are ever populated with a secureDefault (see
+ * planPrompt.ts's instructions), matching hclGenerator.ts's
+ * formatSecureDefault. Persisting it here (not just using it in the
+ * generated variables.tf) is what lets environmentWiringGenerator.ts wire
+ * a secure fallback into the module call site later — see its own doc
+ * comment for why the variable's own default alone isn't enough. */
+function jsonSchemaDefault(field: FieldSpec): unknown {
+  if (!field.secureDefault) return undefined;
+  if (field.hclType === "boolean" || field.hclType === "bool") {
+    return field.secureDefault === "true";
+  }
+  if (field.hclType === "string") return field.secureDefault;
+  return undefined;
+}
+
 function fieldToJsonSchema(field: FieldSpec): Record<string, unknown> {
   if (field.nesting) {
     const properties: Record<string, unknown> = {};
@@ -77,7 +95,9 @@ function fieldToJsonSchema(field: FieldSpec): Record<string, unknown> {
   }
 
   const base = hclTypeToJsonSchema(field.hclType);
-  return field.description ? { ...base, description: field.description } : base;
+  const withDescription = field.description ? { ...base, description: field.description } : base;
+  const defaultValue = jsonSchemaDefault(field);
+  return defaultValue === undefined ? withDescription : { ...withDescription, default: defaultValue };
 }
 
 export interface GenerateSchemaFileParams {

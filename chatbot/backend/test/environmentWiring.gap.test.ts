@@ -32,3 +32,49 @@ describe("environments/dev/main.tf wiring gap (linux_virtual_machine fixture)", 
     expect(ensureEnvironmentWiring("resource-group", "dev")).toBeNull();
   });
 });
+
+/**
+ * Regression test for a real live failure: a scaffolded azurerm_redis_cache
+ * still failed checkov (public network access, TLS version, SSL-only) on
+ * import alone — zero instances — even after its module's own variables.tf
+ * defaults were fixed to be secure. checkov statically analyzes THIS call
+ * site's expression (environments/dev/main.tf), not the module's own
+ * variable default several files away, so `try(each.value.field, null)`
+ * still reads as unresolved/insecure to it regardless of what the module
+ * itself would default to. The fix: fall back to the field's own
+ * JSON-Schema `default` (persisted by jsonSchemaGenerator.ts's
+ * jsonSchemaDefault) instead of a bare null.
+ */
+describe("environments/dev/main.tf wiring — secure-default call-site fallback", () => {
+  it("uses the field's JSON-Schema default as the try() fallback instead of a bare null", () => {
+    const result = ensureEnvironmentWiring("fake-checkov-regression-fixture", "dev", {
+      resourceType: "fake-checkov-regression-fixture",
+      containerKey: "fake_checkov_regression_fixtures",
+      schema: {
+        properties: {
+          fake_checkov_regression_fixtures: {
+            additionalProperties: {
+              required: ["name"],
+              properties: {
+                name: { type: "string" },
+                public_network_access_enabled: { type: "boolean", default: false },
+                minimum_tls_version: { type: "string", default: "1.2" },
+                shard_count: { type: "number" }, // no default — ordinary optional field
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.content).toMatch(
+      /public_network_access_enabled\s*=\s*try\(each\.value\.public_network_access_enabled, false\)/
+    );
+    expect(result!.content).toMatch(
+      /minimum_tls_version\s*=\s*try\(each\.value\.minimum_tls_version, "1\.2"\)/
+    );
+    // No secure default on this one — falls back to null, unchanged.
+    expect(result!.content).toMatch(/shard_count\s*=\s*try\(each\.value\.shard_count, null\)/);
+  });
+});

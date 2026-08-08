@@ -77,8 +77,28 @@ export function ensureEnvironmentWiring(
     lines.push(`  location            = each.value.location`);
   }
   for (const field of extraFields) {
-    const accessor = required.includes(field) ? `each.value.${field}` : `try(each.value.${field}, null)`;
-    lines.push(`  ${field} = ${accessor}`);
+    if (required.includes(field)) {
+      lines.push(`  ${field} = each.value.${field}`);
+      continue;
+    }
+    // checkov statically analyzes THIS call site's expression, not the
+    // module's own variable default several files away — a security-
+    // relevant field wired as `try(each.value.field, null)` still reads
+    // as "unresolved/insecure" to it even when that module's own variable
+    // defaults to a secure value, because it never looks past the module
+    // boundary to resolve what null ultimately becomes. Falling back to
+    // the field's own JSON-Schema `default` (set only for the same small
+    // set of security-relevant fields hclGenerator.ts bakes into
+    // variables.tf — see jsonSchemaGenerator.ts's jsonSchemaDefault) here
+    // too keeps checkov's view and the module's real behavior consistent.
+    // Regression: a scaffolded azurerm_redis_cache still failed checkov
+    // (public network access, TLS version, SSL-only) on import alone even
+    // after the module's own variables.tf defaults were fixed, until the
+    // call site itself stopped falling back to a bare null.
+    const fieldSchema = properties[field] as { default?: unknown } | undefined;
+    const fallback =
+      fieldSchema && "default" in fieldSchema ? JSON.stringify(fieldSchema.default) : "null";
+    lines.push(`  ${field} = try(each.value.${field}, ${fallback})`);
   }
   if ("tags" in properties) {
     lines.push(`  tags = each.value.tags`);
