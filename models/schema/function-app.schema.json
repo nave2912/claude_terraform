@@ -1,0 +1,487 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://internal/schemas/function-app.schema.json",
+  "title": "function_app Model",
+  "description": "AI-scaffolded schema for JSON-driven function_app definitions — verify field constraints before use.",
+  "type": "object",
+  "required": [
+    "function_apps"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "function_apps": {
+      "type": "object",
+      "description": "Map keyed by a stable logical id. The key becomes the for_each key in Terraform.",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "name",
+          "location",
+          "resource_group_name",
+          "tags",
+          "app_service_plan_id",
+          "storage_account_access_key",
+          "storage_account_name"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "description": "Must follow naming convention: <workload>-<env> (lowercase, hyphen-separated)"
+          },
+          "location": {
+            "type": "string",
+            "minLength": 3
+          },
+          "resource_group_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Must match the \"name\" of an entry in resource-group.json."
+          },
+          "tags": {
+            "type": "object",
+            "required": [
+              "environment",
+              "owner",
+              "costCenter",
+              "application",
+              "dataClassification"
+            ],
+            "properties": {
+              "environment": {
+                "type": "string",
+                "enum": [
+                  "dev",
+                  "qa",
+                  "prod"
+                ]
+              },
+              "owner": {
+                "type": "string",
+                "minLength": 1
+              },
+              "costCenter": {
+                "type": "string",
+                "minLength": 1
+              },
+              "application": {
+                "type": "string",
+                "minLength": 1
+              },
+              "dataClassification": {
+                "type": "string",
+                "enum": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ]
+              }
+            },
+            "additionalProperties": true
+          },
+          "app_service_plan_id": {
+            "type": "string",
+            "description": "The resource ID of the App Service Plan that will host this Function App."
+          },
+          "storage_account_access_key": {
+            "type": "string",
+            "description": "The access key for the storage account. The Function App uses this for its internal operations, triggers, and bindings."
+          },
+          "storage_account_name": {
+            "type": "string",
+            "description": "The name of the storage account the Function App will use for its internal state and triggers."
+          },
+          "app_settings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "A map of key-value pairs for application settings that will be available to the Function App at runtime as environment variables."
+          },
+          "client_cert_mode": {
+            "type": "string",
+            "description": "The mode for client certificate authentication. Controls whether client certificates are optional or required."
+          },
+          "daily_memory_time_quota": {
+            "type": "number",
+            "description": "The daily memory-time quota in GB-seconds. When consumption exceeds this, the app is stopped until the quota resets. A value of 0 means no quota."
+          },
+          "enable_builtin_logging": {
+            "type": "boolean",
+            "description": "Whether to enable the built-in logging to Azure Storage. If disabled, you must configure your own logging."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether the Function App is enabled and running. Set to false to stop the app without deleting it."
+          },
+          "https_only": {
+            "type": "boolean",
+            "description": "Whether to require HTTPS for all incoming requests. When true, HTTP requests are automatically redirected to HTTPS.",
+            "default": true
+          },
+          "key_vault_reference_identity_id": {
+            "type": "string",
+            "description": "The user-assigned managed identity ID to use for Key Vault references. If not set, the system-assigned identity is used."
+          },
+          "os_type": {
+            "type": "string",
+            "description": "The operating system type for the Function App. Controls whether the app runs on Windows or Linux."
+          },
+          "version": {
+            "type": "string",
+            "description": "The runtime version of the Azure Functions host (e.g. '~3' or '~4')."
+          },
+          "auth_settings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "additional_login_params": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "allowed_external_redirect_urls": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "default_provider": {
+                  "type": "string"
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "issuer": {
+                  "type": "string"
+                },
+                "runtime_version": {
+                  "type": "string"
+                },
+                "token_refresh_extension_hours": {
+                  "type": "number"
+                },
+                "token_store_enabled": {
+                  "type": "boolean"
+                },
+                "unauthenticated_client_action": {
+                  "type": "string"
+                },
+                "active_directory": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "allowed_audiences": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "client_id": {
+                        "type": "string"
+                      },
+                      "client_secret": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                      "client_id"
+                    ]
+                  }
+                },
+                "facebook": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "app_id": {
+                        "type": "string"
+                      },
+                      "app_secret": {
+                        "type": "string"
+                      },
+                      "oauth_scopes": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                      "app_id",
+                      "app_secret"
+                    ]
+                  }
+                },
+                "google": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "client_id": {
+                        "type": "string"
+                      },
+                      "client_secret": {
+                        "type": "string"
+                      },
+                      "oauth_scopes": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                      "client_id",
+                      "client_secret"
+                    ]
+                  }
+                },
+                "microsoft": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "client_id": {
+                        "type": "string"
+                      },
+                      "client_secret": {
+                        "type": "string"
+                      },
+                      "oauth_scopes": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                      "client_id",
+                      "client_secret"
+                    ]
+                  }
+                },
+                "twitter": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "consumer_key": {
+                        "type": "string"
+                      },
+                      "consumer_secret": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                      "consumer_key",
+                      "consumer_secret"
+                    ]
+                  }
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "enabled"
+              ]
+            }
+          },
+          "connection_string": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "name",
+                "type",
+                "value"
+              ]
+            }
+          },
+          "identity": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "identity_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "type": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "type"
+              ]
+            }
+          },
+          "site_config": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "always_on": {
+                  "type": "boolean"
+                },
+                "app_scale_limit": {
+                  "type": "number"
+                },
+                "auto_swap_slot_name": {
+                  "type": "string"
+                },
+                "dotnet_framework_version": {
+                  "type": "string"
+                },
+                "elastic_instance_minimum": {
+                  "type": "number"
+                },
+                "ftps_state": {
+                  "type": "string"
+                },
+                "health_check_path": {
+                  "type": "string"
+                },
+                "http2_enabled": {
+                  "type": "boolean"
+                },
+                "ip_restriction": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  }
+                },
+                "java_version": {
+                  "type": "string"
+                },
+                "linux_fx_version": {
+                  "type": "string"
+                },
+                "min_tls_version": {
+                  "type": "string"
+                },
+                "pre_warmed_instance_count": {
+                  "type": "number"
+                },
+                "runtime_scale_monitoring_enabled": {
+                  "type": "boolean"
+                },
+                "scm_ip_restriction": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  }
+                },
+                "scm_type": {
+                  "type": "string"
+                },
+                "scm_use_main_ip_restriction": {
+                  "type": "boolean"
+                },
+                "use_32_bit_worker_process": {
+                  "type": "boolean"
+                },
+                "vnet_route_all_enabled": {
+                  "type": "boolean"
+                },
+                "websockets_enabled": {
+                  "type": "boolean"
+                },
+                "cors": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "allowed_origins": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "support_credentials": {
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                      "allowed_origins"
+                    ]
+                  }
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "source_control": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "branch": {
+                  "type": "string"
+                },
+                "manual_integration": {
+                  "type": "boolean"
+                },
+                "repo_url": {
+                  "type": "string"
+                },
+                "rollback_enabled": {
+                  "type": "boolean"
+                },
+                "use_mercurial": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "timeouts": {
+            "type": "object",
+            "properties": {
+              "create": {
+                "type": "string"
+              },
+              "delete": {
+                "type": "string"
+              },
+              "read": {
+                "type": "string"
+              },
+              "update": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}
