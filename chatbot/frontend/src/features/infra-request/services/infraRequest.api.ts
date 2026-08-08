@@ -9,7 +9,6 @@ import type {
   ProposeOutcome,
   PrStatusResponse,
   ScaffoldGenerateOutcome,
-  ScaffoldPlanOutcome,
   SchemaInfoResponse,
   StructuredProposalInput,
   TerraformRouteOutcome,
@@ -68,22 +67,10 @@ export const infraRequestApi = {
   getCommitStatus: (sha: string) =>
     requestJson<CommitStatusResponse>(`/api/backend/commit-status?sha=${encodeURIComponent(sha)}`),
 
-  scaffoldModulePlan: (message: string, resourceType?: string) =>
-    requestJson<ScaffoldPlanOutcome>("/api/backend/scaffold-module/plan", {
-      method: "POST",
-      body: JSON.stringify({ message, resourceType }),
-    }),
-
-  scaffoldModuleGenerate: (
-    resourceType: string,
-    environment: string,
-    fieldDescriptions?: Record<string, string>,
-    fieldExamples?: Record<string, string>,
-    requesterId?: string
-  ) =>
+  scaffoldModuleGenerate: (resourceType: string, environment: string, requesterId?: string) =>
     requestJson<ScaffoldGenerateOutcome>("/api/backend/scaffold-module/generate", {
       method: "POST",
-      body: JSON.stringify({ resourceType, environment, fieldDescriptions, fieldExamples, requesterId }),
+      body: JSON.stringify({ resourceType, environment, requesterId }),
     }),
 
   terraformRoute: (message: string) =>

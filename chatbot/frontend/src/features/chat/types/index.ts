@@ -3,11 +3,8 @@ import type {
   ProposeOutcome,
   ResourceTypeInfo,
   ScaffoldGenerateOutcome,
-  ScaffoldPlanOutcome,
   StructuredProposalInput,
 } from "@/types/schema";
-
-type ScaffoldPlanReady = Extract<ScaffoldPlanOutcome, { status: "plan_ready" }>;
 
 export type ChatRole = "user" | "bot";
 
@@ -27,7 +24,6 @@ export type ChatMessage =
   | { id: string; role: "bot"; kind: "preview"; outcome: PreviewOutcome; input: StructuredProposalInput }
   | { id: string; role: "bot"; kind: "result"; outcome: ProposeOutcome }
   | { id: string; role: "bot"; kind: "error"; message: string }
-  | { id: string; role: "bot"; kind: "scaffold-plan"; plan: ScaffoldPlanReady }
   | { id: string; role: "bot"; kind: "scaffold-result"; outcome: ScaffoldGenerateOutcome };
 
 /** Distributive Omit — plain `Omit<ChatMessage, "id">` collapses the union

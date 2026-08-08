@@ -120,6 +120,25 @@ skip-check:
   - CKV2_AZURE_56 # mysql flexible server
   - CKV2_AZURE_57 # postgresql flexible server
 
+  # --- Required-field-value baseline (structurally unresolvable through
+  # the for_each + external-JSON-model pattern EVERY scaffolded module
+  # uses — not fixable by better scaffolding) ---
+  # A REQUIRED field (no default possible by definition — that's what
+  # required means in this repo's convention) is always wired at the
+  # call site as a bare `each.value.<field>`, sourced from
+  # jsondecode()'ing that resource type's own models/<env>/<type>.json.
+  # checkov can never resolve that back to a literal, no matter what real
+  # value a real instance actually sets — this is permanent for this
+  # architecture, unlike an OPTIONAL field's secure default (see
+  # secureDefault in scaffoldModule.ts), which genuinely fixes the
+  # equivalent case by being resolvable through the module's own variable
+  # declaration. Only add a check here when it targets a REQUIRED field's
+  # specific value (not just whether it's set) — confirmed live on a
+  # scaffolded azurerm_redis_cache's sku_name/family (checkov wants
+  # "Standard Replication", i.e. a specific sku_name value it can never
+  # see through each.value.sku_name).
+  - CKV_AZURE_230 # redis_cache — standard replication (required sku_name/family)
+
 download-external-modules: false
 
 compact: true

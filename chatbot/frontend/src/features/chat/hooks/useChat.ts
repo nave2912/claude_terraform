@@ -18,65 +18,62 @@ const SCAFFOLD_COMMAND = /^\/tfmodules\b\s*(.*)$/i;
  * point: it asks the backend's /terraform-route (see
  * chatbot/backend/src/pipeline/routeTerraformCommand.ts) whether the
  * requested resource type already has a module — if so it opens the same
- * resource-form flow plain chat uses below; if not it falls through to the
- * module-scaffolding flow, which is now apply-ready (module + schema +
- * environment wiring + a starter entry, see scaffoldModule.ts).
+ * resource-form flow plain chat uses below (create an instance from the
+ * JSON model, via the schema-driven UI). If not, it imports the module —
+ * no field review, no example values, no plan step: /terraform's whole job
+ * here is onboarding the module itself (files + schema + environment
+ * wiring, zero instances). Creating an actual instance afterward always
+ * goes through the resource-form/JSON-model flow, never through
+ * /terraform — see runScaffoldImport.
  *
- * A message starting with "/tfmodules" (or any follow-up message while a
- * scaffold clarification is pending, tracked via `scaffoldContext`) is kept
- * working, unchanged, as a deprecated alias straight into the
- * module-scaffolding flow below — see runScaffoldPlan.
+ * A message starting with "/tfmodules" (or a follow-up while a /terraform
+ * clarification is pending) is a deprecated alias — shown a notice, then
+ * handled by the exact same runTerraformRoute path as /terraform.
  */
 export function useChat() {
   const { messages, isBusy, addMessage, setBusy, reset } = useChatStore();
   const schemaInfoQuery = useSchemaInfo();
-  // null = not mid-scaffold-conversation; "" or partial text = awaiting a
-  // clarifying answer, accumulated so the next plan call has full context.
-  const [scaffoldContext, setScaffoldContext] = useState<string | null>(null);
-  // Same idea, for a pending /terraform clarification round trip.
+  // null = not mid-/terraform-conversation; "" or partial text = awaiting a
+  // clarifying answer, accumulated so the next route call has full context.
   const [terraformContext, setTerraformContext] = useState<string | null>(null);
 
-  const runScaffoldPlan = useCallback(
-    async (description: string, resourceTypeHint?: string) => {
+  const runScaffoldImport = useCallback(
+    async (providerResourceType: string) => {
       setBusy(true);
       try {
-        const outcome = await infraRequestApi.scaffoldModulePlan(description, resourceTypeHint);
+        // No environment picker, no field review — importing a module
+        // creates zero instances, so there's nothing instance-shaped to
+        // ask the user about. Silently targets the first configured
+        // environment (today, always "dev").
+        const environment = schemaInfoQuery.data?.allowedEnvironments[0] ?? "dev";
+        const outcome = await infraRequestApi.scaffoldModuleGenerate(providerResourceType, environment);
 
-        if (outcome.status === "clarification_needed") {
-          addMessage({ role: "bot", kind: "clarification", question: outcome.question });
-          setScaffoldContext(description);
-          return;
-        }
-        if (outcome.status === "no_action") {
-          addMessage({ role: "bot", kind: "error", message: outcome.message });
-          setScaffoldContext(null);
-          return;
-        }
-        if (outcome.status === "denied") {
-          addMessage({ role: "bot", kind: "error", message: `${outcome.resourceType}: ${outcome.reason}` });
-          setScaffoldContext(null);
-          return;
-        }
-        if (outcome.status === "unknown_resource_type") {
-          addMessage({
-            role: "bot",
-            kind: "error",
-            message: `"${outcome.resourceType}" isn't a known azurerm resource type. Try naming it more precisely (e.g. "azurerm_linux_virtual_machine").`,
-          });
-          setScaffoldContext(null);
+        if (
+          outcome.status === "denied" ||
+          outcome.status === "unknown_resource_type" ||
+          outcome.status === "environment_blocked" ||
+          outcome.status === "schema_generation_failed"
+        ) {
+          const message =
+            outcome.status === "denied"
+              ? `${outcome.resourceType}: ${outcome.reason}`
+              : outcome.status === "unknown_resource_type"
+                ? `"${outcome.resourceType}" isn't a known azurerm resource type. Try naming it more precisely (e.g. "azurerm_linux_virtual_machine").`
+                : outcome.status === "environment_blocked"
+                  ? `"${outcome.environment}" isn't an allowed environment (allowed: ${outcome.allowed.join(", ")}).`
+                  : outcome.errors.join(", ");
+          addMessage({ role: "bot", kind: "error", message });
           return;
         }
 
-        addMessage({ role: "bot", kind: "scaffold-plan", plan: outcome });
-        setScaffoldContext(null);
+        addMessage({ role: "bot", kind: "scaffold-result", outcome });
       } catch (err) {
         addMessage({ role: "bot", kind: "error", message: err instanceof Error ? err.message : String(err) });
-        setScaffoldContext(null);
       } finally {
         setBusy(false);
       }
     },
-    [addMessage]
+    [addMessage, schemaInfoQuery.data, setBusy]
   );
 
   const runTerraformRoute = useCallback(
@@ -109,10 +106,10 @@ export function useChat() {
         }
 
         // new_type: hand the already-resolved provider resource type
-        // straight to the plan step as a hint, so it isn't re-resolved by a
-        // second LLM call. runScaffoldPlan manages its own busy state.
+        // straight to the import step — no second LLM call to re-resolve
+        // it, no field review. runScaffoldImport manages its own busy state.
         setBusy(false);
-        await runScaffoldPlan(outcome.providerResourceType, outcome.providerResourceType);
+        await runScaffoldImport(outcome.providerResourceType);
         return;
       } catch (err) {
         addMessage({ role: "bot", kind: "error", message: err instanceof Error ? err.message : String(err) });
@@ -121,7 +118,7 @@ export function useChat() {
         setBusy(false);
       }
     },
-    [addMessage, schemaInfoQuery.data, runScaffoldPlan]
+    [addMessage, schemaInfoQuery.data, runScaffoldImport, setBusy]
   );
 
   const sendMessage = useCallback(
@@ -131,10 +128,19 @@ export function useChat() {
       const trimmed = text.trim();
 
       const terraformMatch = trimmed.match(TERRAFORM_COMMAND);
-      if (terraformMatch || terraformContext !== null) {
-        const description = terraformMatch
-          ? terraformMatch[1].trim()
-          : `${terraformContext} ${trimmed}`.trim();
+      const scaffoldMatch = trimmed.match(SCAFFOLD_COMMAND);
+
+      if (terraformMatch || scaffoldMatch || terraformContext !== null) {
+        if (scaffoldMatch) {
+          addMessage({
+            role: "bot",
+            kind: "text",
+            text: "`/tfmodules` is deprecated — use `/terraform <request>` instead. Continuing…",
+          });
+        }
+
+        const match = terraformMatch ?? scaffoldMatch;
+        const description = match ? match[1].trim() : `${terraformContext} ${trimmed}`.trim();
 
         if (!description) {
           addMessage({
@@ -147,35 +153,6 @@ export function useChat() {
         }
 
         await runTerraformRoute(description);
-        return;
-      }
-
-      const scaffoldMatch = trimmed.match(SCAFFOLD_COMMAND);
-
-      if (scaffoldMatch || scaffoldContext !== null) {
-        const description = scaffoldMatch
-          ? scaffoldMatch[1].trim()
-          : `${scaffoldContext} ${trimmed}`.trim();
-
-        if (!description) {
-          addMessage({
-            role: "bot",
-            kind: "clarification",
-            question: 'What Azure resource would you like to scaffold a new module for? (e.g. "a Linux virtual machine")',
-          });
-          setScaffoldContext("");
-          return;
-        }
-
-        if (scaffoldMatch) {
-          addMessage({
-            role: "bot",
-            kind: "text",
-            text: "`/tfmodules` is deprecated — use `/terraform <request>` instead. Continuing with the module-scaffold flow…",
-          });
-        }
-
-        await runScaffoldPlan(description);
         return;
       }
 
@@ -220,7 +197,7 @@ export function useChat() {
         setBusy(false);
       }
     },
-    [addMessage, schemaInfoQuery.data, setBusy, scaffoldContext, runScaffoldPlan, terraformContext, runTerraformRoute]
+    [addMessage, schemaInfoQuery.data, setBusy, terraformContext, runTerraformRoute]
   );
 
   return {
