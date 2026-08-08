@@ -144,3 +144,30 @@ describe("scaffoldModule — azurerm_resource_group (offline, resource_group as 
     expect(mockReturnToMain).toHaveBeenCalled();
   });
 });
+
+describe("scaffoldModule — provider schema failures", () => {
+  // Regression test: production once had no `terraform` binary in the
+  // backend's Docker image, so getProviderSchema() threw a plain
+  // "spawn terraform ENOENT" for every scaffold request, and the old
+  // bare `catch { return unknown_resource_type }` misreported it as
+  // "azurerm_cosmosdb_account isn't a known azurerm resource type" — a
+  // real, valid resource type, and nothing to do with the actual failure.
+  it("propagates any error that isn't the genuine 'unknown resource type' case", async () => {
+    mockGetProviderSchema.mockImplementationOnce(() => {
+      throw new Error("spawn terraform ENOENT");
+    });
+
+    await expect(scaffoldModule("azurerm_cosmosdb_account", "dev", {}, "test-fixture")).rejects.toThrow(
+      "spawn terraform ENOENT"
+    );
+  });
+
+  it("still reports unknown_resource_type for a genuinely nonexistent type", async () => {
+    mockGetProviderSchema.mockImplementationOnce(() => {
+      throw new Error('Unknown azurerm resource type "azurerm_not_a_real_thing".');
+    });
+
+    const outcome = await scaffoldModule("azurerm_not_a_real_thing", "dev", {}, "test-fixture");
+    expect(outcome).toEqual({ status: "unknown_resource_type", resourceType: "azurerm_not_a_real_thing" });
+  });
+});

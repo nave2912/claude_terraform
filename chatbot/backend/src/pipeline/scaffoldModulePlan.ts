@@ -53,8 +53,17 @@ export async function planModuleScaffold(
   let block;
   try {
     ({ block } = getProviderSchema(providerResourceType));
-  } catch {
-    return { status: "unknown_resource_type", resourceType: providerResourceType };
+  } catch (err) {
+    // Only the provider schema genuinely not containing this resource type
+    // means "unknown resource type" — anything else (e.g. the `terraform`
+    // binary missing, a provider-schema fetch failure) is a real
+    // infrastructure problem that must not be misreported as if the user
+    // asked for something invalid. Let it propagate to the route handler's
+    // own catch (-> 500 with the real message) instead.
+    if (err instanceof Error && err.message.startsWith("Unknown azurerm resource type")) {
+      return { status: "unknown_resource_type", resourceType: providerResourceType };
+    }
+    throw err;
   }
 
   const allFields = extractFields(block);
