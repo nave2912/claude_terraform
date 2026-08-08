@@ -43,6 +43,17 @@
         "application": "azure-learning",
         "dataClassification": "public"
       }
+    },
+    "test323445656_v149": {
+      "name": "test323445656",
+      "location": "WestEurope",
+      "tags": {
+        "environment": "dev",
+        "owner": "platform-team",
+        "costCenter": "CC-LEARN-001",
+        "application": "azure-learning",
+        "dataClassification": "public"
+      }
     }
   }
 }
