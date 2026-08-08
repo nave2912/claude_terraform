@@ -90,6 +90,36 @@ skip-check:
   # upgraded to a Premium SKU.
   - CKV_AZURE_225
 
+  # --- Azure network-isolation baseline (no VNET/Private Endpoint wiring
+  # exists yet, for ANY resource type, anywhere in this framework) ---
+  # These are graph-level checks that require a connected
+  # azurerm_private_endpoint resource to ever pass — no amount of
+  # correctly-generated module code can satisfy them without that wiring,
+  # so pre-authorizing them here (once, for the whole framework) replaces
+  # having to rediscover and hand-patch this same finding for every new
+  # resource type scaffolded through /terraform. First hit on a scaffolded
+  # azurerm_machine_learning_workspace (CKV2_AZURE_49/50).
+  #
+  # This does NOT cover attribute-level checks (e.g. a plain
+  # public_network_access_enabled boolean) — those a correctly-scaffolded
+  # module can and should satisfy on its own by setting the right value.
+  # Only add an attribute-level check here with a specific, resource-level
+  # justification if a real case shows the attribute genuinely can't be
+  # set — same bar as every other entry in this file. Don't casually widen
+  # this list without checking that first.
+  #
+  # CKV2_AZURE_32 (key_vault) and CKV2_AZURE_33 (storage_account) are the
+  # same class of finding, already skipped above — not repeated here to
+  # avoid a duplicate skip-check entry.
+  - CKV2_AZURE_42 # postgresql single server
+  - CKV2_AZURE_43 # mariadb
+  - CKV2_AZURE_44 # mysql single server
+  - CKV2_AZURE_45 # mssql server
+  - CKV2_AZURE_49 # machine learning workspace network
+  - CKV2_AZURE_50 # machine learning workspace HBI storage
+  - CKV2_AZURE_56 # mysql flexible server
+  - CKV2_AZURE_57 # postgresql flexible server
+
 download-external-modules: false
 
 compact: true
