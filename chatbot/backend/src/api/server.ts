@@ -347,11 +347,11 @@ app.post("/scaffold-module/plan", requireApiKey, async (req: Request, res: Respo
  * Never auto-merges, same as every other write route here.
  */
 app.post("/scaffold-module/generate", requireApiKey, async (req: Request, res: Response) => {
-  const { resourceType, environment, fieldDescriptions, requesterId } = req.body ?? {};
+  const { resourceType, environment, fieldDescriptions, fieldExamples, requesterId } = req.body ?? {};
   if (typeof resourceType !== "string" || !resourceType.trim() || typeof environment !== "string" || !environment.trim()) {
     res.status(400).json({
       error:
-        "body must be JSON: { resourceType: \"<azurerm_...>\", environment: \"<env>\", fieldDescriptions?: {name: description}, requesterId? }",
+        "body must be JSON: { resourceType: \"<azurerm_...>\", environment: \"<env>\", fieldDescriptions?: {name: description}, fieldExamples?: {name: exampleValue}, requesterId? }",
     });
     return;
   }
@@ -360,6 +360,7 @@ app.post("/scaffold-module/generate", requireApiKey, async (req: Request, res: R
       resourceType,
       environment,
       fieldDescriptions && typeof fieldDescriptions === "object" ? fieldDescriptions : undefined,
+      fieldExamples && typeof fieldExamples === "object" ? fieldExamples : undefined,
       typeof requesterId === "string" ? requesterId : undefined
     );
     res.json(outcome);

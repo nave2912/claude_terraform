@@ -76,11 +76,12 @@ export const infraRequestApi = {
     resourceType: string,
     environment: string,
     fieldDescriptions?: Record<string, string>,
+    fieldExamples?: Record<string, string>,
     requesterId?: string
   ) =>
     requestJson<ScaffoldGenerateOutcome>("/api/backend/scaffold-module/generate", {
       method: "POST",
-      body: JSON.stringify({ resourceType, environment, fieldDescriptions, requesterId }),
+      body: JSON.stringify({ resourceType, environment, fieldDescriptions, fieldExamples, requesterId }),
     }),
 
   terraformRoute: (message: string) =>

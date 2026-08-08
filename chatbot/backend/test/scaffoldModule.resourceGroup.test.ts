@@ -83,7 +83,7 @@ describe("scaffoldModule — azurerm_resource_group (offline, resource_group as 
   });
 
   it("generates a schema whose required fields match the real hand-authored resource-group.schema.json", async () => {
-    await scaffoldModule("azurerm_resource_group", "dev", {}, "test-fixture");
+    await scaffoldModule("azurerm_resource_group", "dev", {}, {}, "test-fixture");
 
     const files = mockWriteMultipleAndCommit.mock.calls[0][0] as { filePath: string; content: string }[];
     const schemaFile = files.find((f) => f.filePath.endsWith("resource-group.schema.json"))!;
@@ -99,7 +99,7 @@ describe("scaffoldModule — azurerm_resource_group (offline, resource_group as 
   });
 
   it("generates a main.tf resource block structurally consistent with the hand-built module", async () => {
-    await scaffoldModule("azurerm_resource_group", "dev", {}, "test-fixture");
+    await scaffoldModule("azurerm_resource_group", "dev", {}, {}, "test-fixture");
 
     const files = mockWriteMultipleAndCommit.mock.calls[0][0] as { filePath: string; content: string }[];
     const mainTf = files.find((f) => f.filePath.endsWith(path.join("resource_group", "main.tf")))!;
@@ -114,7 +114,7 @@ describe("scaffoldModule — azurerm_resource_group (offline, resource_group as 
   });
 
   it("runs the full pipeline end-to-end and produces an apply-ready PR (module + schema + starter entry)", async () => {
-    const outcome = await scaffoldModule("azurerm_resource_group", "dev", {}, "test-fixture");
+    const outcome = await scaffoldModule("azurerm_resource_group", "dev", {}, {}, "test-fixture");
 
     expect(outcome.status).toBe("pr_opened");
     if (outcome.status !== "pr_opened") return;
@@ -173,7 +173,7 @@ describe("scaffoldModule — resource_group_name starter-entry regression", () =
       block: RESOURCE_GROUP_NAME_FIELD_BLOCK,
     });
 
-    const outcome = await scaffoldModule("azurerm_cosmosdb_account", "dev", {}, "test-fixture");
+    const outcome = await scaffoldModule("azurerm_cosmosdb_account", "dev", {}, {}, "test-fixture");
     expect(outcome.status).toBe("pr_opened");
 
     const files = mockWriteMultipleAndCommit.mock.calls.at(-1)![0] as { filePath: string; content: string }[];
@@ -190,6 +190,72 @@ describe("scaffoldModule — resource_group_name starter-entry regression", () =
   });
 });
 
+// A literal fixture with a required plain-string field that's really an
+// enum the azurerm provider enforces but its own schema JSON never exposes
+// (application_type's real shape) — the class of field that exposed the
+// regression below.
+const REQUIRED_ENUM_STRING_FIELD_BLOCK = {
+  attributes: {
+    id: { type: "string", computed: true },
+    name: { type: "string", required: true },
+    location: { type: "string", required: true },
+    resource_group_name: { type: "string", required: true },
+    application_type: { type: "string", required: true },
+    tags: { type: ["map", "string"], optional: true },
+  },
+};
+
+describe("scaffoldModule — fieldExamples starter-entry regression", () => {
+  // Regression test: azurerm_application_insights's required
+  // application_type field only accepts a fixed set of values
+  // (["web" "other" "java" "MobileCenter" "phone" "store" "ios" "Node.JS"])
+  // enforced by the provider's Go SDK — invisible to
+  // `terraform providers schema -json`, which only reports "string". Every
+  // fresh scaffold got a literal "placeholder" for it and failed terraform
+  // plan with "expected application_type to be one of [...], got
+  // placeholder" (live on PRs #65 and #66, since the per-PR fix to #65
+  // only patched that one branch, not the generator). fieldExamples lets
+  // the same Claude call that already writes the field's plain-English
+  // description also supply a real, valid value.
+  it("uses a provided fieldExamples value for a required string field instead of a generic placeholder", async () => {
+    mockGetProviderSchema.mockReturnValueOnce({
+      resourceType: "azurerm_application_insights",
+      block: REQUIRED_ENUM_STRING_FIELD_BLOCK,
+    });
+
+    const outcome = await scaffoldModule(
+      "azurerm_application_insights",
+      "dev",
+      {},
+      { application_type: "web" },
+      "test-fixture"
+    );
+    expect(outcome.status).toBe("pr_opened");
+
+    const files = mockWriteMultipleAndCommit.mock.calls.at(-1)![0] as { filePath: string; content: string }[];
+    const modelFile = files.find((f) => f.filePath.endsWith(path.join("dev", "application-insights.json")))!;
+    const modelJson = JSON.parse(modelFile.content);
+
+    expect(modelJson.application_insights.example.application_type).toBe("web");
+  });
+
+  it("still falls back to a generic placeholder when no fieldExamples value is given", async () => {
+    mockGetProviderSchema.mockReturnValueOnce({
+      resourceType: "azurerm_application_insights",
+      block: REQUIRED_ENUM_STRING_FIELD_BLOCK,
+    });
+
+    const outcome = await scaffoldModule("azurerm_application_insights", "dev", {}, {}, "test-fixture");
+    expect(outcome.status).toBe("pr_opened");
+
+    const files = mockWriteMultipleAndCommit.mock.calls.at(-1)![0] as { filePath: string; content: string }[];
+    const modelFile = files.find((f) => f.filePath.endsWith(path.join("dev", "application-insights.json")))!;
+    const modelJson = JSON.parse(modelFile.content);
+
+    expect(modelJson.application_insights.example.application_type).toBe("placeholder");
+  });
+});
+
 describe("scaffoldModule — provider schema failures", () => {
   // Regression test: production once had no `terraform` binary in the
   // backend's Docker image, so getProviderSchema() threw a plain
@@ -202,7 +268,7 @@ describe("scaffoldModule — provider schema failures", () => {
       throw new Error("spawn terraform ENOENT");
     });
 
-    await expect(scaffoldModule("azurerm_cosmosdb_account", "dev", {}, "test-fixture")).rejects.toThrow(
+    await expect(scaffoldModule("azurerm_cosmosdb_account", "dev", {}, {}, "test-fixture")).rejects.toThrow(
       "spawn terraform ENOENT"
     );
   });
@@ -212,7 +278,7 @@ describe("scaffoldModule — provider schema failures", () => {
       throw new Error('Unknown azurerm resource type "azurerm_not_a_real_thing".');
     });
 
-    const outcome = await scaffoldModule("azurerm_not_a_real_thing", "dev", {}, "test-fixture");
+    const outcome = await scaffoldModule("azurerm_not_a_real_thing", "dev", {}, {}, "test-fixture");
     expect(outcome).toEqual({ status: "unknown_resource_type", resourceType: "azurerm_not_a_real_thing" });
   });
 });

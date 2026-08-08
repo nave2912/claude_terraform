@@ -56,7 +56,8 @@ function selfCheckSchema(
   schemaJson: string,
   containerKey: string,
   allFields: FieldSpec[],
-  primaryResourceGroupName: string
+  primaryResourceGroupName: string,
+  fieldExamples: Record<string, string>
 ): { valid: boolean; errors: string[]; sampleEntry: Record<string, unknown> } {
   const schema = JSON.parse(schemaJson);
   const entrySchema = schema.properties[containerKey].additionalProperties;
@@ -75,7 +76,7 @@ function selfCheckSchema(
   const sampleEntry: Record<string, unknown> = {};
   for (const name of requiredNames) {
     const field = byName.get(name);
-    if (field) sampleEntry[name] = sampleValue(field, primaryResourceGroupName);
+    if (field) sampleEntry[name] = sampleValue(field, primaryResourceGroupName, fieldExamples);
   }
 
   const ajv = new Ajv({ allErrors: true, strict: false });
@@ -114,7 +115,11 @@ function resolvePrimaryResourceGroupName(environment: string): string {
   }
 }
 
-function sampleValue(field: FieldSpec, primaryResourceGroupName: string): unknown {
+function sampleValue(
+  field: FieldSpec,
+  primaryResourceGroupName: string,
+  fieldExamples: Record<string, string> = {}
+): unknown {
   if (field.name === "tags") {
     return {
       environment: "dev",
@@ -130,13 +135,27 @@ function sampleValue(field: FieldSpec, primaryResourceGroupName: string): unknow
   if (field.name === "resource_group_name") return primaryResourceGroupName;
   if (field.nesting) {
     const obj: Record<string, unknown> = {};
-    for (const nf of field.nestedFields ?? []) obj[nf.name] = sampleValue(nf, primaryResourceGroupName);
+    for (const nf of field.nestedFields ?? [])
+      obj[nf.name] = sampleValue(nf, primaryResourceGroupName, fieldExamples);
     return field.nesting === "single" ? obj : [obj];
   }
   if (field.hclType === "number") return 1;
   if (field.hclType === "bool") return true;
   if (/^(list|set)\(/.test(field.hclType)) return ["placeholder"];
   if (/^map\(/.test(field.hclType)) return { key: "value" };
+  // Plain string fields are where a literal "placeholder" actually breaks
+  // things: many azurerm string arguments only accept a fixed set of
+  // values (an enum enforced by the provider's Go SDK, never visible in
+  // `terraform providers schema -json` — see planPrompt.ts's exampleValue
+  // instructions). A real example (e.g. application_type -> "web"),
+  // supplied by the same Claude call that already writes this field's
+  // plain-English description, replaces the guaranteed-wrong generic
+  // placeholder with a value grounded in Claude's own azurerm knowledge.
+  // Regression: azurerm_application_insights's required application_type
+  // field failed terraform plan with "expected application_type to be one
+  // of [...], got placeholder" on every fresh scaffold (PRs #65, #66) until
+  // this fallback existed.
+  if (field.hclType === "string" && fieldExamples[field.name]) return fieldExamples[field.name];
   return "placeholder";
 }
 
@@ -162,6 +181,11 @@ export async function scaffoldModule(
   // every generic field. Only used to enrich prose; required/optional/
   // type always come from the provider schema itself, never from here.
   fieldDescriptions: Record<string, string> = {},
+  // Field name -> a concrete real example value the user already reviewed
+  // in the chat plan (planIntent.ts's summarizeFields's exampleValue). Only
+  // applied to plain string fields, in place of the generic "placeholder"
+  // fallback — see sampleValue's doc comment for why this matters.
+  fieldExamples: Record<string, string> = {},
   requesterId?: string
 ): Promise<ScaffoldOutcome> {
   const denylistCheck = checkDenylist(providerResourceType);
@@ -215,7 +239,13 @@ export async function scaffoldModule(
   const tfTestFile = generateTfTestFile({ moduleName, resourceType: providerResourceType, mandatoryFields });
 
   const primaryResourceGroupName = resolvePrimaryResourceGroupName(environment);
-  const selfCheck = selfCheckSchema(schemaJson, containerKey, withDescriptions, primaryResourceGroupName);
+  const selfCheck = selfCheckSchema(
+    schemaJson,
+    containerKey,
+    withDescriptions,
+    primaryResourceGroupName,
+    fieldExamples
+  );
   if (!selfCheck.valid) {
     return { status: "self_check_failed", errors: selfCheck.errors };
   }
