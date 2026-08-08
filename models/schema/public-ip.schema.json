@@ -1,0 +1,163 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://internal/schemas/public-ip.schema.json",
+  "title": "public_ip Model",
+  "description": "AI-scaffolded schema for JSON-driven public_ip definitions — verify field constraints before use.",
+  "type": "object",
+  "required": [
+    "public_ips"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "public_ips": {
+      "type": "object",
+      "description": "Map keyed by a stable logical id. The key becomes the for_each key in Terraform.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "name",
+          "location",
+          "resource_group_name",
+          "tags",
+          "allocation_method"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "description": "Must follow naming convention: <workload>-<env> (lowercase, hyphen-separated)"
+          },
+          "location": {
+            "type": "string",
+            "minLength": 3
+          },
+          "resource_group_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Must match the \"name\" of an entry in resource-group.json."
+          },
+          "tags": {
+            "type": "object",
+            "required": [
+              "environment",
+              "owner",
+              "costCenter",
+              "application",
+              "dataClassification"
+            ],
+            "properties": {
+              "environment": {
+                "type": "string",
+                "enum": [
+                  "dev",
+                  "qa",
+                  "prod"
+                ]
+              },
+              "owner": {
+                "type": "string",
+                "minLength": 1
+              },
+              "costCenter": {
+                "type": "string",
+                "minLength": 1
+              },
+              "application": {
+                "type": "string",
+                "minLength": 1
+              },
+              "dataClassification": {
+                "type": "string",
+                "enum": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ]
+              }
+            },
+            "additionalProperties": true
+          },
+          "allocation_method": {
+            "type": "string",
+            "description": "Defines how the public IP address is assigned. Use 'Static' for a permanent IP address that doesn't change, or 'Dynamic' for an IP address that is assigned when the resource is started and may change when stopped."
+          },
+          "ddos_protection_mode": {
+            "type": "string",
+            "description": "The DDoS protection mode for the public IP. Controls the level of distributed denial-of-service attack protection applied to this IP address."
+          },
+          "ddos_protection_plan_id": {
+            "type": "string",
+            "description": "The resource ID of an Azure DDoS Protection Plan to associate with this public IP address for enhanced DDoS protection."
+          },
+          "domain_name_label": {
+            "type": "string",
+            "description": "An optional DNS label that creates a fully qualified domain name (FQDN) for the public IP in the format: label.region.cloudapp.azure.com."
+          },
+          "edge_zone": {
+            "type": "string",
+            "description": "Specifies the Edge Zone within the Azure region where this public IP should be created, for scenarios requiring edge computing capabilities."
+          },
+          "idle_timeout_in_minutes": {
+            "type": "number",
+            "description": "The timeout in minutes for idle TCP connections. Determines how long a TCP connection can remain idle before being closed."
+          },
+          "ip_tags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "A map of IP tags to associate with the public IP address, used for routing or categorization purposes (e.g., routing preferences or service tags)."
+          },
+          "ip_version": {
+            "type": "string",
+            "description": "The IP version to use for the public IP address. Typically 'IPv4' or 'IPv6'."
+          },
+          "public_ip_prefix_id": {
+            "type": "string",
+            "description": "The resource ID of a public IP prefix from which to allocate this public IP address, useful for allocating IPs from a predefined range."
+          },
+          "reverse_fqdn": {
+            "type": "string",
+            "description": "The reverse fully qualified domain name (reverse DNS) associated with this public IP address for reverse DNS lookup scenarios."
+          },
+          "sku": {
+            "type": "string",
+            "description": "The SKU (pricing/performance tier) of the public IP address, such as 'Basic' or 'Standard', which affects features and availability guarantees."
+          },
+          "sku_tier": {
+            "type": "string",
+            "description": "The SKU tier for the public IP, such as 'Regional' or 'Global', which determines the scope and routing capabilities of the IP address."
+          },
+          "zones": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "A set of availability zones where the public IP address should be deployed for high availability (e.g., ['1', '2', '3'])."
+          },
+          "timeouts": {
+            "type": "object",
+            "properties": {
+              "create": {
+                "type": "string"
+              },
+              "delete": {
+                "type": "string"
+              },
+              "read": {
+                "type": "string"
+              },
+              "update": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}
