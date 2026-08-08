@@ -11,6 +11,17 @@
         "dataClassification": "internal"
       }
     },
+    "sdsdsd_x110": {
+      "name": "sdsdsd",
+      "location": "WestEurope",
+      "tags": {
+        "environment": "dev",
+        "owner": "platform-team",
+        "costCenter": "CC-LEARN-001",
+        "application": "azure-learning",
+        "dataClassification": "internal"
+      }
+    },
     "rsg01_57gy": {
       "name": "rsg01",
       "location": "WestEurope",
