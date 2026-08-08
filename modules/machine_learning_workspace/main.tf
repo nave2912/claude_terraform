@@ -25,7 +25,7 @@ resource "azurerm_machine_learning_workspace" "this" {
   sku_name                                     = var.sku_name
   v1_legacy_mode_enabled                       = var.v1_legacy_mode_enabled
   dynamic "encryption" {
-    for_each = var.encryption
+    for_each = var.encryption == null ? [] : var.encryption
     content {
       key_id                    = encryption.value.key_id
       key_vault_id              = encryption.value.key_vault_id
@@ -33,7 +33,7 @@ resource "azurerm_machine_learning_workspace" "this" {
     }
   }
   dynamic "feature_store" {
-    for_each = var.feature_store
+    for_each = var.feature_store == null ? [] : var.feature_store
     content {
       computer_spark_runtime_version = feature_store.value.computer_spark_runtime_version
       offline_connection_name        = feature_store.value.offline_connection_name
@@ -41,13 +41,13 @@ resource "azurerm_machine_learning_workspace" "this" {
     }
   }
   dynamic "managed_network" {
-    for_each = var.managed_network
+    for_each = var.managed_network == null ? [] : var.managed_network
     content {
       isolation_mode = managed_network.value.isolation_mode
     }
   }
   dynamic "serverless_compute" {
-    for_each = var.serverless_compute
+    for_each = var.serverless_compute == null ? [] : var.serverless_compute
     content {
       public_ip_enabled = serverless_compute.value.public_ip_enabled
       subnet_id         = serverless_compute.value.subnet_id
