@@ -149,8 +149,15 @@ export async function scaffoldModule(
   let block;
   try {
     ({ block } = getProviderSchema(providerResourceType));
-  } catch {
-    return { status: "unknown_resource_type", resourceType: providerResourceType };
+  } catch (err) {
+    // See scaffoldModulePlan.ts's identical check for why: only the
+    // provider schema genuinely not containing this resource type means
+    // "unknown resource type" — anything else is a real infra problem that
+    // must surface, not get misreported as an invalid resource type.
+    if (err instanceof Error && err.message.startsWith("Unknown azurerm resource type")) {
+      return { status: "unknown_resource_type", resourceType: providerResourceType };
+    }
+    throw err;
   }
 
   const moduleName = deriveModuleName(providerResourceType);

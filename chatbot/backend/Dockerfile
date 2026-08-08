@@ -21,6 +21,18 @@ RUN npm run build
 FROM node:20-alpine
 RUN apk add --no-cache git github-cli
 
+# moduleScaffold/providerSchema.ts shells out to the real `terraform` CLI
+# (init + providers schema -json) to source the azurerm provider's own
+# machine-readable schema for /tfmodules and /terraform's scaffold-a-new-
+# module path — without this binary, every scaffold request fails with a
+# misleading "isn't a known azurerm resource type" (getProviderSchema's
+# execFileSync throws ENOENT, which the caller was swallowing into that
+# generic message regardless of cause; see the fixed catch blocks in
+# pipeline/scaffoldModule.ts and scaffoldModulePlan.ts).
+# Version pinned to match TF_VERSION in .github/workflows/main.yml —
+# keep these in sync.
+COPY --from=hashicorp/terraform:1.7.5 /bin/terraform /usr/local/bin/terraform
+
 WORKDIR /app
 COPY chatbot/backend/package*.json ./
 RUN npm ci --omit=dev
