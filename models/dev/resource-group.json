@@ -32,6 +32,17 @@
         "application": "azure-learning",
         "dataClassification": "internal"
       }
+    },
+    "ghgh_u6fq": {
+      "name": "ghgh",
+      "location": "WestEurope",
+      "tags": {
+        "environment": "dev",
+        "owner": "platform-team",
+        "costCenter": "CC-LEARN-001",
+        "application": "azure-learning",
+        "dataClassification": "public"
+      }
     }
   }
 }
