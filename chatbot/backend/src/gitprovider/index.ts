@@ -52,6 +52,39 @@ export function createChangeBranch(branchPrefix: string): string {
   return branch;
 }
 
+/**
+ * Checks out an EXISTING remote branch (an already-open PR's branch),
+ * unlike createChangeBranch which always branches fresh off origin/main.
+ * Used by the "fix an existing PR" pipeline: it needs to read/write files
+ * on the same branch the failing PR already lives on, not open a second,
+ * competing branch. Always resets hard to origin/<branch> so a stale local
+ * copy from an earlier request never shadows what's actually on GitHub.
+ */
+export function checkoutExistingBranch(branch: string): void {
+  ensureCleanWorktree();
+  git(["fetch", "origin", branch]);
+  git(["checkout", "-B", branch, `origin/${branch}`]);
+}
+
+export interface PrInfo {
+  branch: string;
+  /** Repo-relative paths, exactly as GitHub reports them for this PR. */
+  files: string[];
+}
+
+/** The open PR's own branch name + changed-file list — used to figure out
+ * which module/model files a "fix an existing PR" request is even allowed
+ * to touch (see fixExistingPr.ts's file allowlist). */
+export function getPrInfo(prNumber: number): PrInfo {
+  const output = execFileSync(
+    "gh",
+    ["pr", "view", String(prNumber), "--json", "headRefName,files"],
+    { cwd: REPO_ROOT, encoding: "utf-8" }
+  );
+  const parsed = JSON.parse(output) as { headRefName: string; files: { path: string }[] };
+  return { branch: parsed.headRefName, files: (parsed.files ?? []).map((f) => f.path) };
+}
+
 /** Writes file content and commits it on the current branch. */
 export function writeAndCommit(filePath: string, content: string, message: string): void {
   fs.writeFileSync(filePath, content);
