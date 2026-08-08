@@ -127,6 +127,11 @@ export interface ScaffoldFieldSummary {
   hclType: string;
   required: boolean;
   description: string;
+  /** A concrete, real example value Claude proposed for this (string)
+   * field — see chatbot/backend/src/moduleScaffold/planPrompt.ts's
+   * exampleValue instructions. Undefined when there was no meaningful
+   * real-world value to suggest. */
+  exampleValue?: string;
   nesting?: "single" | "list" | "set" | "map";
   nestedFields?: ScaffoldFieldSummary[];
 }

@@ -97,7 +97,22 @@ Call describe_fields with:
   hint was given, use it as a starting point but simplify it for a
   non-Terraform-expert reader. Where no hint was given, describe the field
   from its name and type as best you can, staying accurate to the type
-  shown (don't claim a list field is a single value, etc.).`;
+  shown (don't claim a list field is a single value, etc.).
+- for every plain "string" field (not a list/set/map/nested block), also
+  give an exampleValue: ONE concrete, real, valid literal string a working
+  example config could use for it. This matters most for fields Azure
+  restricts to a fixed set of accepted values (e.g. an "application_type"
+  or "account_tier"-style argument) — the Terraform provider's own schema
+  never exposes those enum constraints, only that the type is "string", so
+  without a real value here a generated placeholder like "placeholder" or
+  "example" will fail terraform plan/apply against the real Azure API. Use
+  your own knowledge of the azurerm provider and the underlying Azure
+  service to pick a value that would actually be accepted. Omit
+  exampleValue only for fields that are genuinely free-text with no
+  real-world constraint to get right (e.g. an arbitrary display name) or
+  that reference another resource you have no way to know (e.g. an
+  existing resource's ID) — a generic placeholder is fine there since nothing
+  you could invent would be more valid than anything else.`;
 }
 
 export const SUMMARIZE_TOOLS = [
@@ -118,6 +133,11 @@ export const SUMMARIZE_TOOLS = [
             properties: {
               name: { type: "string" },
               description: { type: "string" },
+              exampleValue: {
+                type: "string",
+                description:
+                  "A concrete, real, valid literal value for this field (string fields only) — see the exampleValue instructions above. Omit for fields with no meaningful real-world constraint.",
+              },
             },
           },
         },

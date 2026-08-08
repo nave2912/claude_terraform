@@ -37,10 +37,22 @@ export function ScaffoldPlanMessage({ message }: { message: Extract<ChatMessage,
       // supply one (rare), which trips this repo's tflint
       // terraform_documented_variables rule on nearly every field.
       const fieldDescriptions: Record<string, string> = {};
+      // Carry example values through the same way — Claude's own real
+      // (not generic-placeholder) suggestion for fields like an
+      // "application_type"-style enum, computed once during the plan step
+      // (see planPrompt.ts's exampleValue instructions), otherwise a fresh
+      // scaffold silently falls back to a value that fails terraform plan.
+      const fieldExamples: Record<string, string> = {};
       for (const f of [...plan.mandatoryFields, ...plan.optionalFields]) {
         if (f.description) fieldDescriptions[f.name] = f.description;
+        if (f.exampleValue) fieldExamples[f.name] = f.exampleValue;
       }
-      return infraRequestApi.scaffoldModuleGenerate(plan.providerResourceType, environment, fieldDescriptions);
+      return infraRequestApi.scaffoldModuleGenerate(
+        plan.providerResourceType,
+        environment,
+        fieldDescriptions,
+        fieldExamples
+      );
     },
     onSuccess: (outcome) => {
       addMessage({ role: "bot", kind: "scaffold-result", outcome });

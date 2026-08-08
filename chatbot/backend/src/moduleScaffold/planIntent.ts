@@ -59,6 +59,11 @@ export async function resolveResourceType(message: string): Promise<ResolveResul
 
 export interface FieldSummary extends FieldSpec {
   description: string;
+  /** A concrete, real example value Claude proposed for this (string) field
+   * — see planPrompt.ts's exampleValue instructions. Undefined when Claude
+   * had no meaningful real-world value to suggest (free-text/reference
+   * fields), in which case callers fall back to a generic placeholder. */
+  exampleValue?: string;
 }
 
 export interface FieldsSummaryResult {
@@ -98,16 +103,28 @@ export async function summarizeFields(
   const toolUse = response.content.find((b) => b.type === "tool_use");
   const input =
     toolUse && toolUse.type === "tool_use"
-      ? (toolUse.input as { summary?: string; fieldDescriptions?: { name: string; description: string }[] })
+      ? (toolUse.input as {
+          summary?: string;
+          fieldDescriptions?: { name: string; description: string; exampleValue?: string }[];
+        })
       : { summary: "", fieldDescriptions: [] };
 
   // Even with a generous token budget, a truncated/malformed response is
   // still possible — never let it crash the request. Missing descriptions
   // just fall back to the provider's own hint (or blank) below.
   const descriptions = new Map((input.fieldDescriptions ?? []).map((f) => [f.name, f.description]));
+  const exampleValues = new Map(
+    (input.fieldDescriptions ?? [])
+      .filter((f) => typeof f.exampleValue === "string" && f.exampleValue.length > 0)
+      .map((f) => [f.name, f.exampleValue as string])
+  );
 
   const attach = (fields: FieldSpec[]): FieldSummary[] =>
-    fields.map((f) => ({ ...f, description: descriptions.get(f.name) ?? f.description ?? "" }));
+    fields.map((f) => ({
+      ...f,
+      description: descriptions.get(f.name) ?? f.description ?? "",
+      exampleValue: exampleValues.get(f.name),
+    }));
 
   return {
     summary: input.summary ?? "",
