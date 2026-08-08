@@ -11,7 +11,7 @@
         "application": "azure-learning",
         "dataClassification": "internal"
       },
-      "application_type": "placeholder"
+      "application_type": "web"
     }
   }
 }
