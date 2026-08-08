@@ -1,0 +1,17 @@
+{
+  "application_insights": {
+    "example": {
+      "name": "azure-learning-dev",
+      "location": "East US",
+      "resource_group_name": "azure-learning-dev",
+      "tags": {
+        "environment": "dev",
+        "owner": "platform-team",
+        "costCenter": "CC-LEARN-001",
+        "application": "azure-learning",
+        "dataClassification": "internal"
+      },
+      "application_type": "web"
+    }
+  }
+}
