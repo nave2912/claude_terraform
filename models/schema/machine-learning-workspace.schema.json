@@ -1,0 +1,253 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://internal/schemas/machine-learning-workspace.schema.json",
+  "title": "machine_learning_workspace Model",
+  "description": "AI-scaffolded schema for JSON-driven machine_learning_workspace definitions — verify field constraints before use.",
+  "type": "object",
+  "required": [
+    "machine_learning_workspaces"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "machine_learning_workspaces": {
+      "type": "object",
+      "description": "Map keyed by a stable logical id. The key becomes the for_each key in Terraform.",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "name",
+          "location",
+          "resource_group_name",
+          "tags",
+          "application_insights_id",
+          "key_vault_id",
+          "storage_account_id",
+          "identity"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "description": "Must follow naming convention: <workload>-<env> (lowercase, hyphen-separated)"
+          },
+          "location": {
+            "type": "string",
+            "minLength": 3
+          },
+          "resource_group_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Must match the \"name\" of an entry in resource-group.json."
+          },
+          "tags": {
+            "type": "object",
+            "required": [
+              "environment",
+              "owner",
+              "costCenter",
+              "application",
+              "dataClassification"
+            ],
+            "properties": {
+              "environment": {
+                "type": "string",
+                "enum": [
+                  "dev",
+                  "qa",
+                  "prod"
+                ]
+              },
+              "owner": {
+                "type": "string",
+                "minLength": 1
+              },
+              "costCenter": {
+                "type": "string",
+                "minLength": 1
+              },
+              "application": {
+                "type": "string",
+                "minLength": 1
+              },
+              "dataClassification": {
+                "type": "string",
+                "enum": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ]
+              }
+            },
+            "additionalProperties": true
+          },
+          "application_insights_id": {
+            "type": "string",
+            "description": "The resource ID of the Application Insights instance used to monitor the workspace's activities and experiments."
+          },
+          "key_vault_id": {
+            "type": "string",
+            "description": "The resource ID of the Azure Key Vault used to store secrets, keys, and certificates for the workspace."
+          },
+          "storage_account_id": {
+            "type": "string",
+            "description": "The resource ID of the Azure Storage Account used for storing workspace data, artifacts, and model outputs."
+          },
+          "identity": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "identity_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "type": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "type"
+              ]
+            }
+          },
+          "container_registry_id": {
+            "type": "string",
+            "description": "The resource ID of an Azure Container Registry to use for storing Docker images built for training and deployment."
+          },
+          "description": {
+            "type": "string",
+            "description": "A free-text description of the workspace for documentation purposes."
+          },
+          "friendly_name": {
+            "type": "string",
+            "description": "A user-friendly display name for the workspace shown in the Azure portal and ML Studio."
+          },
+          "high_business_impact": {
+            "type": "boolean",
+            "description": "Whether the workspace handles high business impact data, which enables additional compliance and security features."
+          },
+          "image_build_compute_name": {
+            "type": "string",
+            "description": "The name of the compute target to use for building Docker images when a container registry is attached."
+          },
+          "kind": {
+            "type": "string",
+            "description": "The kind of workspace to create, which determines available features and capabilities."
+          },
+          "primary_user_assigned_identity": {
+            "type": "string",
+            "description": "The resource ID of the primary user-assigned managed identity for the workspace when using user-assigned identities."
+          },
+          "public_access_behind_virtual_network_enabled": {
+            "type": "boolean",
+            "description": "Whether to allow public network access when the workspace is also behind a virtual network. When false, access is restricted to the virtual network only.",
+            "default": false
+          },
+          "public_network_access_enabled": {
+            "type": "boolean",
+            "description": "Whether public network access to the workspace is allowed. When false, the workspace is accessible only through private endpoints.",
+            "default": false
+          },
+          "sku_name": {
+            "type": "string",
+            "description": "The SKU/pricing tier for the workspace."
+          },
+          "v1_legacy_mode_enabled": {
+            "type": "boolean",
+            "description": "Whether to enable v1 legacy mode for backward compatibility with older Azure ML SDK versions."
+          },
+          "encryption": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key_id": {
+                  "type": "string"
+                },
+                "key_vault_id": {
+                  "type": "string"
+                },
+                "user_assigned_identity_id": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "key_id",
+                "key_vault_id"
+              ]
+            }
+          },
+          "feature_store": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "computer_spark_runtime_version": {
+                  "type": "string"
+                },
+                "offline_connection_name": {
+                  "type": "string"
+                },
+                "online_connection_name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "managed_network": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "isolation_mode": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "serverless_compute": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "public_ip_enabled": {
+                  "type": "boolean"
+                },
+                "subnet_id": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "timeouts": {
+            "type": "object",
+            "properties": {
+              "create": {
+                "type": "string"
+              },
+              "delete": {
+                "type": "string"
+              },
+              "read": {
+                "type": "string"
+              },
+              "update": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}
