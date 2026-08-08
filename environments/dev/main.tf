@@ -402,3 +402,40 @@ module "redis_cache" {
   timeouts                  = try(each.value.timeouts, null)
   tags                      = each.value.tags
 }
+
+locals {
+  api_management_model = jsondecode(file("${path.module}/../../models/${var.environment}/api-management.json"))
+}
+
+module "api_management" {
+  source = "../../modules/api_management"
+
+  for_each = local.api_management_model.api_managements
+
+  name                          = each.value.name
+  location                      = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].location
+  resource_group_name           = module.resource_group[local.resource_group_name_to_key[each.value.resource_group_name]].name
+  publisher_email               = each.value.publisher_email
+  publisher_name                = each.value.publisher_name
+  sku_name                      = each.value.sku_name
+  gateway_disabled              = try(each.value.gateway_disabled, null)
+  min_api_version               = try(each.value.min_api_version, null)
+  notification_sender_email     = try(each.value.notification_sender_email, null)
+  policy                        = try(each.value.policy, null)
+  public_ip_address_id          = try(each.value.public_ip_address_id, null)
+  virtual_network_type          = try(each.value.virtual_network_type, null)
+  zones                         = try(each.value.zones, null)
+  additional_location           = try(each.value.additional_location, null)
+  certificate                   = try(each.value.certificate, null)
+  delegation                    = try(each.value.delegation, null)
+  hostname_configuration        = try(each.value.hostname_configuration, null)
+  identity                      = try(each.value.identity, null)
+  protocols                     = try(each.value.protocols, null)
+  security                      = try(each.value.security, null)
+  sign_in                       = try(each.value.sign_in, null)
+  sign_up                       = try(each.value.sign_up, null)
+  tenant_access                 = try(each.value.tenant_access, null)
+  timeouts                      = try(each.value.timeouts, null)
+  virtual_network_configuration = try(each.value.virtual_network_configuration, null)
+  tags                          = each.value.tags
+}
