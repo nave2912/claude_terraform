@@ -32,6 +32,7 @@ import { modelFilePath, MODULES_DIR } from "../config/paths.js";
 import { mergePullRequest, deleteRemoteBranch, getPrStatus, getCommitStatus } from "../gitprovider/index.js";
 import { planModuleScaffold } from "../pipeline/scaffoldModulePlan.js";
 import { scaffoldModule } from "../pipeline/scaffoldModule.js";
+import { routeTerraformCommand } from "../pipeline/routeTerraformCommand.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const API_KEY = process.env.API_KEY;
@@ -341,25 +342,49 @@ app.post("/scaffold-module/plan", requireApiKey, async (req: Request, res: Respo
 
 /**
  * Scaffolds a brand-new module + schema from the azurerm provider's own
- * schema and opens it as a PR — never touches model entries or
- * environments/<env>/main.tf (see the PR body it generates for the
- * required manual follow-up steps). Never auto-merges, same as every
- * other write route here.
+ * schema, wires it into environments/<environment>/main.tf, adds a starter
+ * example entry to models/<environment>/<resourceType>.json, and opens it
+ * all as one PR — apply-ready, not just a scaffold (see scaffoldModule.ts).
+ * Never auto-merges, same as every other write route here.
  */
 app.post("/scaffold-module/generate", requireApiKey, async (req: Request, res: Response) => {
-  const { resourceType, fieldDescriptions, requesterId } = req.body ?? {};
-  if (typeof resourceType !== "string" || !resourceType.trim()) {
+  const { resourceType, environment, fieldDescriptions, requesterId } = req.body ?? {};
+  if (typeof resourceType !== "string" || !resourceType.trim() || typeof environment !== "string" || !environment.trim()) {
     res.status(400).json({
-      error: "body must be JSON: { resourceType: \"<azurerm_...>\", fieldDescriptions?: {name: description}, requesterId? }",
+      error:
+        "body must be JSON: { resourceType: \"<azurerm_...>\", environment: \"<env>\", fieldDescriptions?: {name: description}, requesterId? }",
     });
     return;
   }
   try {
     const outcome = await scaffoldModule(
       resourceType,
+      environment,
       fieldDescriptions && typeof fieldDescriptions === "object" ? fieldDescriptions : undefined,
       typeof requesterId === "string" ? requesterId : undefined
     );
+    res.json(outcome);
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+/**
+ * Single entry point for the `/terraform` chat command: resolves free text
+ * to a concrete azurerm_* resource type (reusing the same resolver
+ * /scaffold-module/plan uses), then reports whether that type already has a
+ * module (existing_type — frontend should route to the resource-form /
+ * propose-structured flow) or not (new_type — frontend should route to
+ * /scaffold-module/plan+generate). Read-only, no side effects.
+ */
+app.post("/terraform-route", requireApiKey, async (req: Request, res: Response) => {
+  const message = req.body?.message;
+  if (typeof message !== "string" || !message.trim()) {
+    res.status(400).json({ error: "body must be JSON: { \"message\": \"<text>\" }" });
+    return;
+  }
+  try {
+    const outcome = await routeTerraformCommand(message);
     res.json(outcome);
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
@@ -379,5 +404,6 @@ app.listen(PORT, () => {
   console.log(`  GET  /commit-status      - commit CI check status (post-merge apply tracking), requires x-api-key`);
   console.log(`  POST /merge-pr           - squash-merge a PR this pipeline opened, requires x-api-key`);
   console.log(`  POST /scaffold-module/plan     - preview a new module's mandatory/optional fields, requires x-api-key`);
-  console.log(`  POST /scaffold-module/generate - scaffold a new module + schema and open a PR, requires x-api-key`);
+  console.log(`  POST /scaffold-module/generate - scaffold an apply-ready module + schema + wiring and open a PR, requires x-api-key`);
+  console.log(`  POST /terraform-route          - route a /terraform message to existing-type vs new-type, requires x-api-key`);
 });
