@@ -81,18 +81,36 @@ function renderFieldValue(field: FieldSpec, sourceExpr: string, indent: string):
 
   // Uniform pattern for single/list/set nesting: normalize to a list so a
   // "single" nested block and a repeatable one both use the same
-  // dynamic-block shape. A REQUIRED single block is wrapped unconditionally
-  // ([sourceExpr]) rather than null-checked — the provider schema's own
+  // dynamic-block shape. A REQUIRED block (single or list/set) is used
+  // unconditionally rather than null-checked — the provider schema's own
   // min_items constraint (e.g. "at least 1 certificate block required")
   // would otherwise be violated whenever the null branch is taken, since
   // Terraform enforces that constraint regardless of how the block count
   // was computed.
+  //
+  // An OPTIONAL block must always null-coalesce, regardless of nesting
+  // shape — every optional generic field gets `default = null` in this
+  // module's own variables.tf (see genericVariableBlock below), and a
+  // caller that doesn't set it (the common case: scaffolded starter
+  // entries only populate required fields) passes that null straight
+  // through. Terraform's `dynamic` for_each never accepts a bare null, no
+  // matter whether the field is conceptually "at most one" (nesting
+  // "single") or "zero or more" (nesting "list"/"set") — many provider
+  // SDKs implement even genuinely-singleton blocks (e.g. many resources'
+  // own "single optional block" arguments) via NestingList with
+  // MaxItems: 1, not NestingSingle, so this isn't just a "single" problem.
+  // Regression: a scaffolded azurerm_machine_learning_workspace's
+  // optional list-nested encryption/feature_store/managed_network/
+  // serverless_compute blocks all failed terraform plan with "Cannot use
+  // a null value in for_each" until this covered the list/set case too.
   const forEach =
     field.nesting === "single"
       ? field.required
         ? `[${sourceExpr}]`
         : `${sourceExpr} == null ? [] : [${sourceExpr}]`
-      : sourceExpr;
+      : field.required
+        ? sourceExpr
+        : `${sourceExpr} == null ? [] : ${sourceExpr}`;
 
   return (
     `${indent}dynamic "${field.name}" {\n` +
