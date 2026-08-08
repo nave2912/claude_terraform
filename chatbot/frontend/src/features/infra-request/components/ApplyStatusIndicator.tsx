@@ -55,11 +55,18 @@ export function ApplyStatusIndicator({ sha }: { sha: string }) {
   return (
     <ul className="flex flex-col gap-1">
       {data.checks.map((check) => (
-        <li key={check.name} className="flex items-center gap-1.5 text-xs">
-          {CHECK_ICON[check.state]}
-          <span className={check.state === "failure" ? "text-destructive" : "text-muted-foreground"}>
-            {check.name}
-          </span>
+        <li key={check.name} className="flex flex-col gap-1 text-xs">
+          <div className="flex items-center gap-1.5">
+            {CHECK_ICON[check.state]}
+            <span className={check.state === "failure" ? "text-destructive" : "text-muted-foreground"}>
+              {check.name}
+            </span>
+          </div>
+          {check.state === "failure" && check.errorText && (
+            <pre className="max-h-40 overflow-auto rounded-md bg-muted p-2 text-[11px] whitespace-pre-wrap text-muted-foreground">
+              {check.errorText}
+            </pre>
+          )}
         </li>
       ))}
     </ul>

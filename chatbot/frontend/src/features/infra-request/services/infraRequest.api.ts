@@ -1,5 +1,7 @@
 import type {
   CommitStatusResponse,
+  FixPrApplyOutcome,
+  FixPrDiagnoseOutcome,
   MergeOutcome,
   ModelEntriesResponse,
   ModulesResponse,
@@ -88,5 +90,17 @@ export const infraRequestApi = {
     requestJson<TerraformRouteOutcome>("/api/backend/terraform-route", {
       method: "POST",
       body: JSON.stringify({ message }),
+    }),
+
+  fixPrDiagnose: (prNumber: number, userReply?: string) =>
+    requestJson<FixPrDiagnoseOutcome>("/api/backend/fix-pr/diagnose", {
+      method: "POST",
+      body: JSON.stringify({ prNumber, userReply }),
+    }),
+
+  fixPrApply: (prNumber: number, files: { filePath: string; newContent: string }[]) =>
+    requestJson<FixPrApplyOutcome>("/api/backend/fix-pr/apply", {
+      method: "POST",
+      body: JSON.stringify({ prNumber, files }),
     }),
 };

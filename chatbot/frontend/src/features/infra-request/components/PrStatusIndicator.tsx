@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { CheckCircle2, CircleDashed, Loader2, XCircle } from "lucide-react";
 import { usePrStatus } from "../hooks/usePrStatus";
 import { MergePrButton } from "./MergePrButton";
+import { FixPrCard } from "./FixPrCard";
 import { useChatStore } from "@/features/chat/store/chat.store";
 
 const CHECK_ICON = {
@@ -66,11 +67,18 @@ export function PrStatusIndicator({ prNumber, branch }: Props) {
     <div className="flex flex-col gap-2">
       <ul className="flex flex-col gap-1">
         {data.checks.map((check) => (
-          <li key={check.name} className="flex items-center gap-1.5 text-xs">
-            {CHECK_ICON[check.state]}
-            <span className={check.state === "failure" ? "text-destructive" : "text-muted-foreground"}>
-              {check.name}
-            </span>
+          <li key={check.name} className="flex flex-col gap-1 text-xs">
+            <div className="flex items-center gap-1.5">
+              {CHECK_ICON[check.state]}
+              <span className={check.state === "failure" ? "text-destructive" : "text-muted-foreground"}>
+                {check.name}
+              </span>
+            </div>
+            {check.state === "failure" && check.errorText && (
+              <pre className="max-h-40 overflow-auto rounded-md bg-muted p-2 text-[11px] whitespace-pre-wrap text-muted-foreground">
+                {check.errorText}
+              </pre>
+            )}
           </li>
         ))}
       </ul>
@@ -80,9 +88,12 @@ export function PrStatusIndicator({ prNumber, branch }: Props) {
         </p>
       )}
       {data.overall === "failure" && (
-        <p className="flex items-center gap-1.5 text-xs text-destructive">
-          <XCircle className="size-3.5" /> Checks failed — fix the PR before it can be merged.
-        </p>
+        <div className="flex flex-col gap-2">
+          <p className="flex items-center gap-1.5 text-xs text-destructive">
+            <XCircle className="size-3.5" /> Checks failed — fix the PR before it can be merged.
+          </p>
+          <FixPrCard prNumber={prNumber} />
+        </div>
       )}
       {data.overall === "success" && <MergePrButton prNumber={prNumber} branch={branch} />}
     </div>
