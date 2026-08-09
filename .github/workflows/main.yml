@@ -143,7 +143,9 @@ jobs:
             -var="chatbot_azure_tenant_id=${{ secrets.CHATBOT_AZURE_TENANT_ID }}" \
             -var="chatbot_azure_client_id=${{ secrets.CHATBOT_AZURE_CLIENT_ID }}" \
             -var="chatbot_azure_client_secret=${{ secrets.CHATBOT_AZURE_CLIENT_SECRET }}" \
-            -var="chatbot_azure_subscription_id=${{ secrets.CHATBOT_AZURE_SUBSCRIPTION_ID }}"
+            -var="chatbot_azure_subscription_id=${{ secrets.CHATBOT_AZURE_SUBSCRIPTION_ID }}" \
+            -var="chatbot_app_login_username=${{ secrets.CHATBOT_APP_LOGIN_USERNAME }}" \
+            -var="chatbot_app_login_password=${{ secrets.CHATBOT_APP_LOGIN_PASSWORD }}"
 
   apply:
     needs: validate
@@ -198,7 +200,9 @@ jobs:
             -var="chatbot_azure_tenant_id=${{ secrets.CHATBOT_AZURE_TENANT_ID }}" \
             -var="chatbot_azure_client_id=${{ secrets.CHATBOT_AZURE_CLIENT_ID }}" \
             -var="chatbot_azure_client_secret=${{ secrets.CHATBOT_AZURE_CLIENT_SECRET }}" \
-            -var="chatbot_azure_subscription_id=${{ secrets.CHATBOT_AZURE_SUBSCRIPTION_ID }}"
+            -var="chatbot_azure_subscription_id=${{ secrets.CHATBOT_AZURE_SUBSCRIPTION_ID }}" \
+            -var="chatbot_app_login_username=${{ secrets.CHATBOT_APP_LOGIN_USERNAME }}" \
+            -var="chatbot_app_login_password=${{ secrets.CHATBOT_APP_LOGIN_PASSWORD }}"
 
       - name: terraform apply
         env:
@@ -217,4 +221,6 @@ jobs:
             -var="chatbot_azure_tenant_id=${{ secrets.CHATBOT_AZURE_TENANT_ID }}" \
             -var="chatbot_azure_client_id=${{ secrets.CHATBOT_AZURE_CLIENT_ID }}" \
             -var="chatbot_azure_client_secret=${{ secrets.CHATBOT_AZURE_CLIENT_SECRET }}" \
-            -var="chatbot_azure_subscription_id=${{ secrets.CHATBOT_AZURE_SUBSCRIPTION_ID }}"
+            -var="chatbot_azure_subscription_id=${{ secrets.CHATBOT_AZURE_SUBSCRIPTION_ID }}" \
+            -var="chatbot_app_login_username=${{ secrets.CHATBOT_APP_LOGIN_USERNAME }}" \
+            -var="chatbot_app_login_password=${{ secrets.CHATBOT_APP_LOGIN_PASSWORD }}"

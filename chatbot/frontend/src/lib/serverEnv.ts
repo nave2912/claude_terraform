@@ -23,3 +23,15 @@ export function anthropicApiKey(): string {
   if (!value) throw new Error("ANTHROPIC_API_KEY is not set (see .env.example).");
   return value;
 }
+
+export function appLoginUsername(): string {
+  const value = process.env.APP_LOGIN_USERNAME;
+  if (!value) throw new Error("APP_LOGIN_USERNAME is not set (see .env.example).");
+  return value;
+}
+
+export function appLoginPassword(): string {
+  const value = process.env.APP_LOGIN_PASSWORD;
+  if (!value) throw new Error("APP_LOGIN_PASSWORD is not set (see .env.example).");
+  return value;
+}
