@@ -24,6 +24,7 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-chart-sequential: var(--chart-sequential);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -73,6 +74,11 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
+  /* Sequential chart hue (magnitude encoding, e.g. cost-by-category bars) —
+     slot-1 blue from the validated data-viz reference palette, clears the
+     ≥3:1 mark-contrast + CVD checks on this surface. Single hue only: bar
+     length carries magnitude, color just says "this is cost data". */
+  --chart-sequential: #2a78d6;
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -108,6 +114,8 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
+  /* Same slot, dark-surface step — see the light-mode definition above. */
+  --chart-sequential: #3987e5;
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);

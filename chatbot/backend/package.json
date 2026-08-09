@@ -2,7 +2,7 @@
   "name": "chatbot-backend",
   "version": "0.1.0",
   "private": true,
-  "description": "Backend for the Terraform landing zone chatbot. Parses natural language into schema-valid JSON model changes; never runs terraform or talks to Azure directly.",
+  "description": "Backend for the Terraform landing zone chatbot. Parses natural language into schema-valid JSON model changes; the infrastructure-change pipeline never runs terraform or talks to Azure directly, changes only ever land via a reviewed PR. src/observability is the one exception: read-only Azure Resource Manager calls (cost, activity log) for the Observability dashboard, never a write path.",
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -13,6 +13,10 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.0",
+    "@azure/arm-costmanagement": "^1.0.0",
+    "@azure/arm-resources": "^8.0.0",
+    "@azure/arm-subscriptions": "^5.1.0",
+    "@azure/identity": "^4.13.1",
     "ajv": "^8.17.1",
     "express": "^5.2.1"
   },

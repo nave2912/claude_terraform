@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Landing Zone Assistant",
-  description: "Chat with the Terraform landing zone to propose new Azure infrastructure via PR.",
+  title: "Landing Zone Console",
+  description: "Manage Azure infrastructure and observability for the landing zone.",
 };
 
 export default function RootLayout({
