@@ -34,6 +34,27 @@ import { planModuleScaffold } from "../pipeline/scaffoldModulePlan.js";
 import { scaffoldModule } from "../pipeline/scaffoldModule.js";
 import { routeTerraformCommand } from "../pipeline/routeTerraformCommand.js";
 import { diagnosePrFailure, applyPrFix } from "../pipeline/fixExistingPr.js";
+import {
+  costBySubscription,
+  costByResourceGroup,
+  costGrandTotal,
+  costTrend,
+  type CostTrendGranularity,
+} from "../observability/cost.js";
+import { listResourceGroups } from "../observability/inventory.js";
+import { resourceActivity } from "../observability/activity.js";
+
+/**
+ * Azure Cost Management/Activity Log calls attach the real upstream HTTP
+ * status as `statusCode` (see withRetry.ts) — most commonly 429 when
+ * throttled. Forward it instead of collapsing every observability failure
+ * to a flat 500, so the frontend's existing "Azure is rate-limiting..."
+ * branch (keyed off a 429 response) actually has a 429 to key off.
+ */
+function azureErrorStatus(err: unknown): number {
+  const statusCode = (err as { statusCode?: number } | undefined)?.statusCode;
+  return statusCode === 429 ? 429 : 500;
+}
 
 const PORT = Number(process.env.PORT ?? 3000);
 const API_KEY = process.env.API_KEY;
@@ -429,6 +450,97 @@ app.post("/fix-pr/apply", requireApiKey, async (req: Request, res: Response) => 
   }
 });
 
+/**
+ * Read-only Azure Cost Management data for the Observability > Cost tab.
+ * scope=subscription           -> month-to-date cost per resource group.
+ * scope=resource-group&resourceGroup=<name> -> month-to-date cost per
+ * resource within that resource group.
+ */
+app.get("/observability/cost", requireApiKey, async (req: Request, res: Response) => {
+  const scope = String(req.query.scope ?? "subscription");
+  try {
+    if (scope === "resource-group") {
+      const resourceGroup = String(req.query.resourceGroup ?? "");
+      if (!resourceGroup) {
+        res.status(400).json({ error: "query param required: resourceGroup (when scope=resource-group)" });
+        return;
+      }
+      res.json({ scope, resourceGroup, rows: await costByResourceGroup(resourceGroup) });
+      return;
+    }
+    if (scope !== "subscription") {
+      res.status(400).json({ error: "query param scope must be 'subscription' or 'resource-group'" });
+      return;
+    }
+    res.json({ scope, rows: await costBySubscription() });
+  } catch (err) {
+    res.status(azureErrorStatus(err)).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+/**
+ * Month-to-date cost summed across every subscription the configured
+ * service principal can see (not just AZURE_SUBSCRIPTION_ID) — the Cost
+ * tab's always-visible headline total, plus the per-subscription breakdown
+ * that sums to it.
+ */
+app.get("/observability/cost/summary", requireApiKey, async (_req: Request, res: Response) => {
+  try {
+    res.json(await costGrandTotal());
+  } catch (err) {
+    res.status(azureErrorStatus(err)).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+/**
+ * Day-by-day or month-by-month cost trend, summed across every accessible
+ * subscription, for the Cost tab's trend charts.
+ * granularity=Daily|Monthly (default Daily), days=how many days back from
+ * today to query (default 30, max 366).
+ */
+app.get("/observability/cost/trend", requireApiKey, async (req: Request, res: Response) => {
+  const granularity: CostTrendGranularity = req.query.granularity === "Monthly" ? "Monthly" : "Daily";
+  const days = Number(req.query.days ?? 30);
+  // Azure Cost Management rejects a Custom time period over 1 calendar
+  // year; 364 keeps every "days ago" -> from/to computation safely under
+  // that regardless of which month/leap-year it lands on.
+  if (!Number.isFinite(days) || days <= 0 || days > 364) {
+    res.status(400).json({ error: "query param days must be a number between 1 and 364" });
+    return;
+  }
+  const to = new Date();
+  const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
+  try {
+    res.json(await costTrend(granularity, from, to));
+  } catch (err) {
+    res.status(azureErrorStatus(err)).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+/** Resource group names in the configured subscription — powers the Cost/Metrics scope pickers. */
+app.get("/observability/resource-groups", requireApiKey, async (_req: Request, res: Response) => {
+  try {
+    res.json({ resourceGroups: await listResourceGroups() });
+  } catch (err) {
+    res.status(azureErrorStatus(err)).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+/**
+ * Read-only Azure Activity Log data for the Observability > Metrics tab:
+ * per-resource last management-plane activity (timestamp + caller) over
+ * the last 90 days, joined onto the live resource inventory so untouched
+ * resources still show up. Optionally scoped to one resource group.
+ */
+app.get("/observability/metrics", requireApiKey, async (req: Request, res: Response) => {
+  const resourceGroup = req.query.resourceGroup ? String(req.query.resourceGroup) : undefined;
+  try {
+    res.json({ resourceGroup: resourceGroup ?? null, resources: await resourceActivity(resourceGroup) });
+  } catch (err) {
+    res.status(azureErrorStatus(err)).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`chatbot backend listening on http://localhost:${PORT}`);
   console.log(`  GET  /health            - no auth`);
@@ -446,4 +558,9 @@ app.listen(PORT, () => {
   console.log(`  POST /terraform-route          - route a /terraform message to existing-type vs new-type, requires x-api-key`);
   console.log(`  POST /fix-pr/diagnose          - diagnose a failing PR's CI and propose a fix, requires x-api-key`);
   console.log(`  POST /fix-pr/apply             - apply a previously-diagnosed fix to the same PR branch, requires x-api-key`);
+  console.log(`  GET  /observability/cost            - month-to-date Azure cost (subscription or resource-group scope), requires x-api-key`);
+  console.log(`  GET  /observability/cost/summary    - month-to-date cost summed across every accessible subscription, requires x-api-key`);
+  console.log(`  GET  /observability/cost/trend      - daily/monthly cost trend across every accessible subscription, requires x-api-key`);
+  console.log(`  GET  /observability/resource-groups - resource group names in the configured subscription, requires x-api-key`);
+  console.log(`  GET  /observability/metrics         - per-resource last activity + last-modified-by, requires x-api-key`);
 });
