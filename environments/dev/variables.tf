@@ -80,6 +80,21 @@ variable "chatbot_azure_subscription_id" {
   sensitive   = true
 }
 
+# One shared username/password gating the home page's Infrastructure
+# Management / Observability cards (see chatbot/frontend/src/proxy.ts +
+# src/app/api/auth/*) — a single fixed credential, not per-user accounts.
+variable "chatbot_app_login_username" {
+  description = "Username required to unlock the chatbot frontend's workspace cards. Supply via TF_VAR_chatbot_app_login_username — never hardcode."
+  type        = string
+  sensitive   = true
+}
+
+variable "chatbot_app_login_password" {
+  description = "Password required to unlock the chatbot frontend's workspace cards. Supply via TF_VAR_chatbot_app_login_password — never hardcode."
+  type        = string
+  sensitive   = true
+}
+
 # A fixed date, not timestamp() — timestamp() re-evaluates on every plan and
 # would perpetually show these two secrets as changed. Bump this (and
 # rotate the actual secret values) roughly annually.

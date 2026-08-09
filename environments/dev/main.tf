@@ -290,6 +290,16 @@ module "container_app" {
       name  = "backend-api-key"
       value = var.chatbot_backend_api_key
     },
+    {
+      # Gates src/proxy.ts + src/app/api/auth/* (the home page's login
+      # dialog) — see variables.tf.
+      name  = "app-login-username"
+      value = var.chatbot_app_login_username
+    },
+    {
+      name  = "app-login-password"
+      value = var.chatbot_app_login_password
+    },
   ] : []
 
   container_name = each.value.container_name
@@ -317,6 +327,8 @@ module "container_app" {
       ] : each.key == "frontend" ? [
       { name = "ANTHROPIC_API_KEY", secret_name = "anthropic-api-key" },
       { name = "BACKEND_API_KEY", secret_name = "backend-api-key" },
+      { name = "APP_LOGIN_USERNAME", secret_name = "app-login-username" },
+      { name = "APP_LOGIN_PASSWORD", secret_name = "app-login-password" },
       # Internal hostname, not the (now nonexistent) public FQDN — backend
       # is external_enabled = false, only reachable from within this
       # environment via <app-name>.internal.<environment-default-domain>.
