@@ -1,8 +1,11 @@
 /**
- * Signed session-cookie helpers for the home page's login gate. Deliberately
- * lightweight (a single fixed username/password, no user database) — this
- * gates access to the Infrastructure Management and Observability
- * workspaces behind one shared credential, not per-user accounts.
+ * Signed, single-use access tokens for the home page's login gate.
+ * Deliberately lightweight (one fixed username/password, no user database,
+ * no ongoing session) — logging in proves you know the credential and buys
+ * exactly one page load of one specific workspace (`target`, e.g.
+ * "/infra"). Every other workspace still needs its own login, and a
+ * refresh of the same page needs it again too: proxy.ts deletes the cookie
+ * the moment it's used, so there is nothing left to reuse.
  *
  * Uses Web Crypto (`crypto.subtle`) rather than Node's `crypto` module so
  * the same code runs unchanged in both a Route Handler and proxy.ts —
@@ -28,25 +31,24 @@ function toHex(buffer: ArrayBuffer): string {
     .join("");
 }
 
-/** Signs `username` with `secret` — the cookie value proves the server (not
- * a client editing document.cookie) issued it, without needing a session
- * store. `secret` is BACKEND_API_KEY, reused rather than adding a
+/** Signs `target` with `secret` — the resulting token only verifies against
+ * that same target, so a token minted for "/infra" is rejected for
+ * "/observability" (and vice versa) even though both check the same
+ * cookie name. `secret` is BACKEND_API_KEY, reused rather than adding a
  * dedicated signing secret: it's already a per-deployment, server-only
  * value with no other client-facing exposure. */
-export async function createSessionToken(username: string, secret: string): Promise<string> {
+export async function createAccessToken(target: string, secret: string): Promise<string> {
   const key = await hmacKey(secret);
-  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(username));
-  return `${username}.${toHex(signature)}`;
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(target));
+  return toHex(signature);
 }
 
-export async function verifySessionToken(
+export async function verifyAccessToken(
   token: string | undefined,
+  target: string,
   secret: string
-): Promise<{ valid: boolean; username?: string }> {
-  if (!token) return { valid: false };
-  const dotIndex = token.indexOf(".");
-  if (dotIndex === -1) return { valid: false };
-  const username = token.slice(0, dotIndex);
-  const expected = await createSessionToken(username, secret);
-  return expected === token ? { valid: true, username } : { valid: false };
+): Promise<boolean> {
+  if (!token) return false;
+  const expected = await createAccessToken(target, secret);
+  return expected === token;
 }

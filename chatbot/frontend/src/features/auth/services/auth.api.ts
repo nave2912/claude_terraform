@@ -1,8 +1,3 @@
-export interface SessionResponse {
-  authenticated: boolean;
-  username?: string;
-}
-
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
@@ -16,13 +11,11 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const authApi = {
-  getSession: () => requestJson<SessionResponse>("/api/auth/session"),
-
-  login: (username: string, password: string) =>
-    requestJson<{ ok: true; username: string }>("/api/auth/login", {
+  /** `target` is the one workspace path (e.g. "/infra") this login unlocks —
+   * see proxy.ts. */
+  login: (username: string, password: string, target: string) =>
+    requestJson<{ ok: true }>("/api/auth/login", {
       method: "POST",
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, target }),
     }),
-
-  logout: () => requestJson<{ ok: true }>("/api/auth/logout", { method: "POST" }),
 };

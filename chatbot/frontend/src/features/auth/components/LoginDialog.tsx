@@ -17,12 +17,17 @@ import { useLogin } from "../hooks/useLogin";
 interface LoginDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Called after a successful login — typically navigates to whichever
-   * workspace card the user originally clicked. */
+  /** The one workspace path this login unlocks, e.g. "/infra" — required
+   * whenever `open` is true; a login with no target wouldn't mean anything
+   * (see proxy.ts, which only accepts a token bound to this exact path). */
+  target: string | null;
+  /** Friendly name of the workspace at `target`, shown in the dialog. */
+  targetLabel?: string;
+  /** Called after a successful login — typically navigates to `target`. */
   onSuccess?: () => void;
 }
 
-export function LoginDialog({ open, onOpenChange, onSuccess }: LoginDialogProps) {
+export function LoginDialog({ open, onOpenChange, target, targetLabel, onSuccess }: LoginDialogProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const usernameId = useId();
@@ -31,8 +36,9 @@ export function LoginDialog({ open, onOpenChange, onSuccess }: LoginDialogProps)
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!target) return;
     login.mutate(
-      { username, password },
+      { username, password, target },
       {
         onSuccess: () => {
           setPassword("");
@@ -60,7 +66,9 @@ export function LoginDialog({ open, onOpenChange, onSuccess }: LoginDialogProps)
             <LockIcon className="size-5" />
           </div>
           <DialogTitle className="mt-2">Sign in</DialogTitle>
-          <DialogDescription>Enter your credentials to open a workspace.</DialogDescription>
+          <DialogDescription>
+            {targetLabel ? `Enter your credentials to open ${targetLabel}.` : "Enter your credentials to continue."}
+          </DialogDescription>
         </DialogHeader>
 
         <form className="mt-4 flex flex-col gap-4" onSubmit={handleSubmit}>
@@ -95,7 +103,7 @@ export function LoginDialog({ open, onOpenChange, onSuccess }: LoginDialogProps)
             </p>
           )}
 
-          <Button type="submit" className="mt-1 w-full" disabled={login.isPending}>
+          <Button type="submit" className="mt-1 w-full" disabled={login.isPending || !target}>
             {login.isPending ? "Signing in…" : "Sign in"}
           </Button>
         </form>
