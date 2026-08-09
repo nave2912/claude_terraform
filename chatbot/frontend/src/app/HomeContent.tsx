@@ -37,7 +37,7 @@ export function HomeContent() {
   const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   // A direct hit on /infra or /observability while logged out gets bounced
-  // here by middleware.ts with ?login=1&next=<path> — reopen the dialog and
+  // here by proxy.ts with ?login=1&next=<path> — reopen the dialog and
   // remember where they were headed so a successful login sends them
   // straight on, instead of dropping them back on this page.
   useEffect(() => {

@@ -5,9 +5,9 @@
  * workspaces behind one shared credential, not per-user accounts.
  *
  * Uses Web Crypto (`crypto.subtle`) rather than Node's `crypto` module so
- * the same code runs unchanged in both a Route Handler (Node.js runtime)
- * and middleware.ts (Edge runtime) — Node's HMAC API isn't available on
- * Edge, Web Crypto is available on both.
+ * the same code runs unchanged in both a Route Handler and proxy.ts —
+ * Web Crypto works in both, without needing to reason about which runtime
+ * each one happens to execute under.
  */
 
 export const SESSION_COOKIE_NAME = "app_session";
