@@ -11,7 +11,8 @@
         "application": "azure-learning",
         "dataClassification": "internal"
       },
-      "application_type": "web"
+      "application_type": "web",
+      "workspace_id": "/subscriptions/ddb1480e-2e58-49d2-9299-ed15ac4d8d88/resourceGroups/ai_azure-learning-dev_1449ed69-d817-4a35-901e-9fa870078f27_managed/providers/Microsoft.OperationalInsights/workspaces/managed-azure-learning-dev-ws"
     }
   }
 }

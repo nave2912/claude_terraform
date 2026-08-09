@@ -255,6 +255,26 @@ module "container_app" {
       name  = "backend-api-key"
       value = var.chatbot_backend_api_key
     },
+    {
+      # Powers src/observability/* (Cost + Metrics tabs) — read-only Azure
+      # Resource Manager/Cost Management calls, separate from the identity
+      # that deploys this Container App itself. See variables.tf for why
+      # these four are plain secrets, not Key-Vault-backed.
+      name  = "azure-tenant-id"
+      value = var.chatbot_azure_tenant_id
+    },
+    {
+      name  = "azure-client-id"
+      value = var.chatbot_azure_client_id
+    },
+    {
+      name  = "azure-client-secret"
+      value = var.chatbot_azure_client_secret
+    },
+    {
+      name  = "azure-subscription-id"
+      value = var.chatbot_azure_subscription_id
+    },
     ] : each.key == "frontend" ? [
     {
       # Same underlying Key Vault secret the backend reads — the frontend
@@ -290,6 +310,10 @@ module "container_app" {
       { name = "ANTHROPIC_API_KEY", secret_name = "anthropic-api-key" },
       { name = "GH_TOKEN", secret_name = "github-token" },
       { name = "API_KEY", secret_name = "backend-api-key" },
+      { name = "AZURE_TENANT_ID", secret_name = "azure-tenant-id" },
+      { name = "AZURE_CLIENT_ID", secret_name = "azure-client-id" },
+      { name = "AZURE_CLIENT_SECRET", secret_name = "azure-client-secret" },
+      { name = "AZURE_SUBSCRIPTION_ID", secret_name = "azure-subscription-id" },
       ] : each.key == "frontend" ? [
       { name = "ANTHROPIC_API_KEY", secret_name = "anthropic-api-key" },
       { name = "BACKEND_API_KEY", secret_name = "backend-api-key" },
