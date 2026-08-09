@@ -45,6 +45,41 @@ variable "chatbot_backend_api_key" {
   sensitive   = true
 }
 
+# The chatbot backend's src/observability/* routes (Cost + Metrics tabs)
+# need their own Azure Resource Manager credential — separate from the
+# OIDC-federated identity that runs `terraform apply` itself, and separate
+# from the AzureLearning subscription_id above (this is *which identity*
+# calls Cost Management/Activity Log at runtime, not *which subscription*
+# gets deployed into). Not Key-Vault-backed like anthropic_api_key/
+# github_token above: those rely on being set once out-of-band and never
+# touched again (ignore_changes = [value]), which needs `az keyvault
+# secret set` access this pipeline doesn't assume. These four are plain
+# Container App secrets instead, refreshed from CI on every apply — same
+# treatment as chatbot_backend_api_key above.
+variable "chatbot_azure_tenant_id" {
+  description = "Entra ID tenant of the service principal the chatbot backend uses for read-only Azure Cost Management/Resource Manager calls. Supply via TF_VAR_chatbot_azure_tenant_id — never hardcode."
+  type        = string
+  sensitive   = true
+}
+
+variable "chatbot_azure_client_id" {
+  description = "App (client) ID of the chatbot backend's Azure Resource Manager service principal. Supply via TF_VAR_chatbot_azure_client_id — never hardcode."
+  type        = string
+  sensitive   = true
+}
+
+variable "chatbot_azure_client_secret" {
+  description = "Client secret of the chatbot backend's Azure Resource Manager service principal. Needs at least Reader plus Cost Management Reader on the target subscription. Supply via TF_VAR_chatbot_azure_client_secret — never hardcode."
+  type        = string
+  sensitive   = true
+}
+
+variable "chatbot_azure_subscription_id" {
+  description = "Subscription the chatbot backend's Observability tabs report on. Usually the same value as subscription_id above, kept as its own variable since the two are conceptually independent (this is the service principal's target, not the deploy target). Supply via TF_VAR_chatbot_azure_subscription_id — never hardcode."
+  type        = string
+  sensitive   = true
+}
+
 # A fixed date, not timestamp() — timestamp() re-evaluates on every plan and
 # would perpetually show these two secrets as changed. Bump this (and
 # rotate the actual secret values) roughly annually.
