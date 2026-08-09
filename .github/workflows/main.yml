@@ -83,6 +83,13 @@ jobs:
         with:
           working_directory: environments/${{ env.ENVIRONMENT }}
           minimum_severity: HIGH
+          # Without this, tfsec-action's own binary-download step calls the
+          # GitHub API unauthenticated (60 req/hr per runner IP, shared
+          # across every job on the pool) — easy to exhaust with any real
+          # CI volume, and it fails the whole validate job when it does.
+          # The default GITHUB_TOKEN raises that to 5000/hr; no new secret
+          # needed, every workflow gets one automatically.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: checkov
         uses: bridgecrewio/checkov-action@master
