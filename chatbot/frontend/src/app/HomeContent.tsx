@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Activity, Boxes, LockIcon } from "lucide-react";
+import { Activity, Boxes, Calculator, LockIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { LoginDialog } from "@/features/auth/components/LoginDialog";
@@ -20,6 +20,18 @@ const SECTIONS = [
     icon: Activity,
     title: "Observability",
     description: "Track Azure cost and resource activity across the landing zone.",
+  },
+] as const;
+
+// Unlike SECTIONS, this tool needs no login — it's a static calculator with
+// no access to landing zone resources, so it links straight out instead of
+// going through the LoginDialog/proxy.ts gate.
+const OPEN_TOOLS = [
+  {
+    href: "https://amzn-639793187640-eu-north-1-an.s3.eu-north-1.amazonaws.com/cidr-calculator.html",
+    icon: Calculator,
+    title: "CIDR Calculator",
+    description: "Work out subnet ranges and host counts for a CIDR block.",
   },
 ] as const;
 
@@ -83,7 +95,7 @@ export function HomeContent() {
           <p className="mt-2 text-muted-foreground">Sign in to pick a workspace.</p>
         </div>
 
-        <div className="grid w-full max-w-3xl gap-6 sm:grid-cols-2">
+        <div className="grid w-full max-w-4xl gap-6 sm:grid-cols-3">
           {SECTIONS.map((section) => (
             <button
               key={section.href}
@@ -109,6 +121,31 @@ export function HomeContent() {
                 </CardContent>
               </Card>
             </button>
+          ))}
+
+          {OPEN_TOOLS.map((tool) => (
+            <a
+              key={tool.href}
+              href={tool.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group text-left outline-none"
+            >
+              <Card className="h-full transition-all group-hover:border-primary/50 group-focus-visible:ring-2 group-focus-visible:ring-ring">
+                <CardHeader>
+                  <div className="flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <tool.icon className="size-5" />
+                  </div>
+                  <CardTitle className="mt-3 text-lg">{tool.title}</CardTitle>
+                  <CardDescription>{tool.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
+                    Open tool
+                  </span>
+                </CardContent>
+              </Card>
+            </a>
           ))}
         </div>
       </main>
