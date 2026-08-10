@@ -33,7 +33,7 @@
       "container_registry_key": "chatbot",
       "container_name": "chatbot-frontend",
       "image_name": "chatbot-frontend",
-      "image_tag": "229929cee26e08ddaaea128d4b35d27c45f82fe9",
+      "image_tag": "ddbbb3137a0fd6f0ceee3a26ff74c484fc4e216c",
       "cpu": 0.25,
       "memory": "0.5Gi",
       "target_port": 3000,
