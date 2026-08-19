@@ -1,0 +1,589 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://internal/schemas/api-management.schema.json",
+  "title": "api_management Model",
+  "description": "AI-scaffolded schema for JSON-driven api_management definitions — verify field constraints before use.",
+  "type": "object",
+  "required": [
+    "api_managements"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "api_managements": {
+      "type": "object",
+      "description": "Map keyed by a stable logical id. The key becomes the for_each key in Terraform.",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "name",
+          "location",
+          "resource_group_name",
+          "tags",
+          "publisher_email",
+          "publisher_name",
+          "sku_name"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "description": "Must follow naming convention: <workload>-<env> (lowercase, hyphen-separated)"
+          },
+          "location": {
+            "type": "string",
+            "minLength": 3
+          },
+          "resource_group_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Must match the \"name\" of an entry in resource-group.json."
+          },
+          "tags": {
+            "type": "object",
+            "required": [
+              "environment",
+              "owner",
+              "costCenter",
+              "application",
+              "dataClassification"
+            ],
+            "properties": {
+              "environment": {
+                "type": "string",
+                "enum": [
+                  "dev",
+                  "qa",
+                  "prod"
+                ]
+              },
+              "owner": {
+                "type": "string",
+                "minLength": 1
+              },
+              "costCenter": {
+                "type": "string",
+                "minLength": 1
+              },
+              "application": {
+                "type": "string",
+                "minLength": 1
+              },
+              "dataClassification": {
+                "type": "string",
+                "enum": [
+                  "public",
+                  "internal",
+                  "confidential",
+                  "restricted"
+                ]
+              }
+            },
+            "additionalProperties": true
+          },
+          "publisher_email": {
+            "type": "string",
+            "description": "The email address of the publisher/administrator, used for system notifications and developer portal communications."
+          },
+          "publisher_name": {
+            "type": "string",
+            "description": "The name of the publisher/organization that owns the API Management service."
+          },
+          "sku_name": {
+            "type": "string",
+            "description": "The SKU (pricing tier and capacity) for the API Management service, formatted as tier_units (e.g., Developer_1, Standard_1, Premium_1)."
+          },
+          "client_certificate_enabled": {
+            "type": "boolean",
+            "description": "Whether client certificate authentication is enforced for requests to the gateway. When enabled, clients must present a valid certificate.",
+            "default": true
+          },
+          "gateway_disabled": {
+            "type": "boolean",
+            "description": "Whether the API gateway should be disabled for this API Management instance. When true, the gateway will not accept API requests."
+          },
+          "min_api_version": {
+            "type": "string",
+            "description": "The minimum API version that clients must use when making management API calls. Setting this enforces a minimum version requirement."
+          },
+          "notification_sender_email": {
+            "type": "string",
+            "description": "The email address used as the sender for notification emails sent from the API Management service."
+          },
+          "policy": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "description": "A list of global policy configurations applied to all APIs in the service. Each policy can be defined via XML content or an XML link."
+          },
+          "public_ip_address_id": {
+            "type": "string",
+            "description": "The resource ID of an existing Azure public IP address to associate with the API Management service."
+          },
+          "public_network_access_enabled": {
+            "type": "boolean",
+            "description": "Whether the API Management service is accessible from the public internet. When false, access is restricted to private networks only.",
+            "default": false
+          },
+          "virtual_network_type": {
+            "type": "string",
+            "description": "The type of virtual network integration for the service. Accepted values include None, External (internet-facing with VNet backend), or Internal (VNet-only access)."
+          },
+          "zones": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "A set of availability zones where the API Management service should be deployed for high availability."
+          },
+          "additional_location": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "capacity": {
+                  "type": "number"
+                },
+                "gateway_disabled": {
+                  "type": "boolean"
+                },
+                "location": {
+                  "type": "string"
+                },
+                "public_ip_address_id": {
+                  "type": "string"
+                },
+                "zones": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "virtual_network_configuration": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "subnet_id": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                      "subnet_id"
+                    ]
+                  }
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "location"
+              ]
+            }
+          },
+          "certificate": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "certificate_password": {
+                  "type": "string"
+                },
+                "encoded_certificate": {
+                  "type": "string"
+                },
+                "store_name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "encoded_certificate",
+                "store_name"
+              ]
+            }
+          },
+          "delegation": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "subscriptions_enabled": {
+                  "type": "boolean"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "user_registration_enabled": {
+                  "type": "boolean"
+                },
+                "validation_key": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "hostname_configuration": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "developer_portal": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "certificate": {
+                        "type": "string"
+                      },
+                      "certificate_password": {
+                        "type": "string"
+                      },
+                      "host_name": {
+                        "type": "string"
+                      },
+                      "key_vault_id": {
+                        "type": "string"
+                      },
+                      "negotiate_client_certificate": {
+                        "type": "boolean"
+                      },
+                      "ssl_keyvault_identity_client_id": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                      "host_name"
+                    ]
+                  }
+                },
+                "management": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "certificate": {
+                        "type": "string"
+                      },
+                      "certificate_password": {
+                        "type": "string"
+                      },
+                      "host_name": {
+                        "type": "string"
+                      },
+                      "key_vault_id": {
+                        "type": "string"
+                      },
+                      "negotiate_client_certificate": {
+                        "type": "boolean"
+                      },
+                      "ssl_keyvault_identity_client_id": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                      "host_name"
+                    ]
+                  }
+                },
+                "portal": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "certificate": {
+                        "type": "string"
+                      },
+                      "certificate_password": {
+                        "type": "string"
+                      },
+                      "host_name": {
+                        "type": "string"
+                      },
+                      "key_vault_id": {
+                        "type": "string"
+                      },
+                      "negotiate_client_certificate": {
+                        "type": "boolean"
+                      },
+                      "ssl_keyvault_identity_client_id": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                      "host_name"
+                    ]
+                  }
+                },
+                "proxy": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "certificate": {
+                        "type": "string"
+                      },
+                      "certificate_password": {
+                        "type": "string"
+                      },
+                      "default_ssl_binding": {
+                        "type": "boolean"
+                      },
+                      "host_name": {
+                        "type": "string"
+                      },
+                      "key_vault_id": {
+                        "type": "string"
+                      },
+                      "negotiate_client_certificate": {
+                        "type": "boolean"
+                      },
+                      "ssl_keyvault_identity_client_id": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                      "host_name"
+                    ]
+                  }
+                },
+                "scm": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "certificate": {
+                        "type": "string"
+                      },
+                      "certificate_password": {
+                        "type": "string"
+                      },
+                      "host_name": {
+                        "type": "string"
+                      },
+                      "key_vault_id": {
+                        "type": "string"
+                      },
+                      "negotiate_client_certificate": {
+                        "type": "boolean"
+                      },
+                      "ssl_keyvault_identity_client_id": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                      "host_name"
+                    ]
+                  }
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "identity": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "identity_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "type": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "type"
+              ]
+            }
+          },
+          "protocols": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "enable_http2": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "security": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "enable_backend_ssl30": {
+                  "type": "boolean"
+                },
+                "enable_backend_tls10": {
+                  "type": "boolean"
+                },
+                "enable_backend_tls11": {
+                  "type": "boolean"
+                },
+                "enable_frontend_ssl30": {
+                  "type": "boolean"
+                },
+                "enable_frontend_tls10": {
+                  "type": "boolean"
+                },
+                "enable_frontend_tls11": {
+                  "type": "boolean"
+                },
+                "tls_ecdhe_ecdsa_with_aes128_cbc_sha_ciphers_enabled": {
+                  "type": "boolean"
+                },
+                "tls_ecdhe_ecdsa_with_aes256_cbc_sha_ciphers_enabled": {
+                  "type": "boolean"
+                },
+                "tls_ecdhe_rsa_with_aes128_cbc_sha_ciphers_enabled": {
+                  "type": "boolean"
+                },
+                "tls_ecdhe_rsa_with_aes256_cbc_sha_ciphers_enabled": {
+                  "type": "boolean"
+                },
+                "tls_rsa_with_aes128_cbc_sha256_ciphers_enabled": {
+                  "type": "boolean"
+                },
+                "tls_rsa_with_aes128_cbc_sha_ciphers_enabled": {
+                  "type": "boolean"
+                },
+                "tls_rsa_with_aes128_gcm_sha256_ciphers_enabled": {
+                  "type": "boolean"
+                },
+                "tls_rsa_with_aes256_cbc_sha256_ciphers_enabled": {
+                  "type": "boolean"
+                },
+                "tls_rsa_with_aes256_cbc_sha_ciphers_enabled": {
+                  "type": "boolean"
+                },
+                "tls_rsa_with_aes256_gcm_sha384_ciphers_enabled": {
+                  "type": "boolean"
+                },
+                "triple_des_ciphers_enabled": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "sign_in": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "enabled"
+              ]
+            }
+          },
+          "sign_up": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "terms_of_service": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "consent_required": {
+                        "type": "boolean"
+                      },
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                      "consent_required",
+                      "enabled"
+                    ]
+                  }
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "enabled",
+                "terms_of_service"
+              ]
+            }
+          },
+          "tenant_access": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "enabled"
+              ]
+            }
+          },
+          "timeouts": {
+            "type": "object",
+            "properties": {
+              "create": {
+                "type": "string"
+              },
+              "delete": {
+                "type": "string"
+              },
+              "read": {
+                "type": "string"
+              },
+              "update": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          },
+          "virtual_network_configuration": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "subnet_id": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "subnet_id"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
